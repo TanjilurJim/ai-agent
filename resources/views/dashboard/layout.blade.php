@@ -13,8 +13,9 @@
      <link href="{{asset('assets/css/bootstrap.min.css')}}" rel="stylesheet" type="text/css" />
      <link href="{{asset('assets/css/icons.min.css')}}" rel="stylesheet" type="text/css" />
      <link href="{{asset('assets/css/app.min.css')}}" rel="stylesheet" type="text/css" />
-
+ {{-- <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script> --}}
      <link href="{{asset('assets/libs/huebee/huebee.min.css')}}" rel="stylesheet" type="text/css" />
+     
 
      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

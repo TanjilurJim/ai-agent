@@ -51,38 +51,61 @@
                         <h4 class="card-title">Subscriber List</h4>
                     </div>
                     <div class="card-body">
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>Name</th>
-                                    <th>Status</th>
-                                    <th>API Key</th>
-                                    <th>Token</th>
-                                    <th class="text-center">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($subscribers as $subscriber)
-                                <tr>
-                                    <td>{{ $loop->iteration }}</td>
-                                    <td>{{ $subscriber->user->name }}</td>
-                                    <td>{{ $subscriber->status }}</td>
-                                    <td>{{ $subscriber->api_key }}</td>
-                                    <td>{{ $subscriber->token }}</td>
-                                    <td class="text-center d-flex justify-content-center gap-2 align-items-center">
-                                        <form class="" style="height: 14px !important;" action="{{ route('subscribers.destroy', $subscriber->id) }}" method="POST" data-id="{{ $subscriber->id }}">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="button" class="btn btn-danger btn-sm delete-btn">Delete</button>
-                                        </form>
-                                        <button type="button" class="btn btn-warning btn-sm edit-btn" data-bs-toggle="modal" data-bs-target="#editSubscriberModal" data-id="{{ $subscriber->id }}" data-name="{{ $subscriber->name }}" data-status="{{ $subscriber->status }}">Edit</button>
-                                    </td>
-                                </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
+  <div class="table-responsive">  {{-- or table-responsive-md if you want only < md to scroll --}}
+    <table class="table table-striped align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>#</th>
+          <th>Name</th>
+          <th>Status</th>
+          <th>API Key</th>
+          <th>Token</th>
+          <th class="text-center">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        @foreach ($subscribers as $subscriber)
+          <tr>
+            <td>{{ $loop->iteration }}</td>
+            <td class="text-break">{{ $subscriber->user->name }}</td>
+            <td><span class="badge bg-{{ $subscriber->status === 'active' ? 'success' : ($subscriber->status === 'pending' ? 'warning' : 'secondary') }}">{{ $subscriber->status }}</span></td>
+
+            {{-- Make long strings wrap on small screens --}}
+            <td class="text-break break-all">{{ $subscriber->api_key }}</td>
+            <td class="text-break break-all">{{ $subscriber->token }}</td>
+
+            <td class="text-center text-md-start text-nowrap align-middle">
+  <div class="d-inline-flex gap-2 align-items-center">
+
+    <form action="{{ route('subscribers.destroy', $subscriber->id) }}" method="POST" class="m-0">
+      @csrf
+      @method('DELETE')
+      <button type="button" class="btn btn-danger btn-sm delete-btn">
+        <i class="fa-regular fa-trash-can me-1"></i>
+        <span class="d-none d-sm-inline">Delete</span>
+      </button>
+    </form>
+
+    <button type="button"
+            class="btn btn-warning btn-sm edit-btn"
+            data-bs-toggle="modal"
+            data-bs-target="#editSubscriberModal"
+            data-id="{{ $subscriber->id }}"
+            data-name="{{ $subscriber->user->name }}"
+            data-status="{{ $subscriber->status }}">
+      <i class="fa-regular fa-pen-to-square me-1"></i>
+      <span class="d-none d-sm-inline">Edit</span>
+    </button>
+
+  </div>
+</td>
+          </tr>
+        @endforeach
+      </tbody>
+    </table>
+  </div>
+</div>
+
                 </div>
             </div>
         </div>

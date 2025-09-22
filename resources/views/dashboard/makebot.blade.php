@@ -16,13 +16,20 @@
                     </div>
                 </div>
             </div>
-            <div class="row gx-5 px-5">
-               <div class="col-md-6 card">
-                    @include('dashboard.widget.form')
-               </div>
-               <div class="col-md-6">
-                    @include('dashboard.widget.widget')
-               </div>
+            <div class="container-fluid px-3 px-md-5">
+                <div class="row g-3 g-md-5">
+                    <div class="col-12 col-md-6">
+                        <div class="card h-100">
+                            @include('dashboard.widget.form')
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        {{-- <div class="card h-100"> --}}
+                            @include('dashboard.widget.widget')
+                        {{-- </div> --}}
+                    </div>
+                </div>
             </div>
         </div>
         @include('dashboard.widget.script')
