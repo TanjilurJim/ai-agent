@@ -23,10 +23,10 @@
                     <h4 class="page-title">Bot Configaration</h4>
                     <div class="d-flex gap-3">
                         <ol class="breadcrumb mb-0 d-flex align-items-center">
-                            <li class="breadcrumb-item "><a class="btn btn-sm btn-primary text-white" href="/dashboard/train-bot/page-list"><i style="margin-right: 5px" class="fa-solid fa-list"></i>Page List</a></li>
+                            <li class=""><a class="btn btn-outline-primary " href="/dashboard/train-bot/page-list"><i style="margin-right: 5px" class="fa-solid fa-list"></i>See All Personalities</a></li>
                         </ol>
                         <ol class="breadcrumb mb-0 d-flex align-items-center">
-                            <li class="breadcrumb-item "><a class="btn btn-sm btn-primary text-white" href="/dashboard/train-bot/add-page"><i  style="margin-right: 5px" class="fa-solid fa-plus"></i>Add Page</a></li>
+                            <li class=""><a class="btn btn-outline-primary " href="/dashboard/train-bot/add-page"><i  style="margin-right: 5px" class="fa-solid fa-plus"></i>Add Personality</a></li>
                         </ol>
                     </div>                            
                 </div>

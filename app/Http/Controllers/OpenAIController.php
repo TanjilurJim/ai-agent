@@ -10,7 +10,8 @@ use App\Models\Subscription;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
-
+use App\Models\Personality;
+use App\Models\PersonalityItem;
 
 
 
@@ -39,7 +40,7 @@ class OpenAIController extends Controller
     {
         // Retrieve the token from the .env file
         $this->authorization = env('OPENAI_API_KEY');
-        $this->endpoint = 'https://api.openai.com/v1/chat/completions';
+        $this->endpoint = 'https://api.deepseek.com/chat/completions';
     }
 
     /**
@@ -50,56 +51,90 @@ class OpenAIController extends Controller
      */
 
 
-    public function chat(Request $request, $api_key)
+    public function chat(Request $request, string $api_key)
     {
         $request->validate([
-            'message' => 'required|string',
+            'message' => ['required', 'string'],
         ]);
 
-
-        $subscriber = Subscription::where('api_key', $api_key)->first();
-
-        if ($subscriber->status !== "active") {
-            return response()->json(['reply' => "Subscription Limit Reached"]);
+        // Resolve the widget first (api_key is on widgets)
+        $widget = Widget::where('api_key', $api_key)->first();
+        if (!$widget) {
+            return response()->json(['reply' => 'Invalid API key.'], 404);
         }
-        $about_us = BotContent::where('user_id', $subscriber->user_id)->first();
-        $page_content = Page::where('user_id', $subscriber->user_id)->get();
-        $page_content_text = $page_content->pluck('content')->implode("\n\n");
+        if (!$widget->is_active) {
+            return response()->json(['reply' => 'Widget is inactive.']);
+        }
 
+        // 1) Subscriber + guardrails
+        $subscriber = Subscription::where('api_key', $api_key)->first();
+        if (!$subscriber) {
+            return response()->json(['reply' => 'Invalid API key.'], 404);
+        }
+        if ($subscriber->status !== 'active') {
+            return response()->json(['reply' => 'Subscription limit reached or inactive.']);
+        }
 
-        $data = [
+        // 2) About text (optional)
+        // $about = BotContent::where('user_id', $subscriber->user_id)->value('content') ?? '';
+        $about = BotContent::where('user_id', $widget->user_id)->value('content') ?? '';
+
+        // 3) Personalities + items for this user
+        $personality = $widget->personality
+            ? $widget->personality->load(['items' => fn($q) => $q->orderBy('order')])
+            : Personality::where('user_id', $widget->user_id)
+            ->with(['items' => fn($q) => $q->orderBy('order')])
+            ->latest()
+            ->first();
+
+        $ctx = [];
+        if ($about !== '') {
+            $ctx[] = "ABOUT THE BUSINESS:\n" . trim($about);
+        }
+
+        if ($personality) {
+            $ctx[] = "PERSONALITY: {$personality->name}";
+            foreach ($personality->items as $it) {
+                $heading = $it->heading ? " - {$it->heading}" : '';
+                $ctx[] = "•{$heading}\n" . trim($it->body);
+            }
+        }
+
+        $contextBlock = trim(implode("\n\n", $ctx));
+
+        $system = trim("
+- Answer using only the provided business information below.
+- If unsure, say your knowledge is limited to the provided data.
+- If there are multiple questions, answer them one by one.
+- Refuse to tell jokes unless a 'Humor' personality explicitly provides them.
+
+$contextBlock
+    ");
+
+        $payload = [
+            'model' => 'deepseek-chat',
             'messages' => [
-                [
-                    'role' => 'system',
-                    'content' => "
-                        - If the message is an inquiry, answer it using only the provided information.
-                        - If unsure about the answer to an inquiry, state that your knowledge is limited to the specific information provided by this business.
-                        - If there are multiple inquiries in a message, answer them one by one.
-                        - Refuse to tell jokes.
-                          $about_us->content
-                           $page_content_text
-                          "
-                ],
-                [
-                    'role' => 'user',
-                    'content' => $request->message,
-                ],
+                ['role' => 'system', 'content' => $system],
+                ['role' => 'user',   'content' => $request->string('message')],
             ],
-            'model' => 'gpt-4',
         ];
 
-        $response = Http::withHeaders([
-            'Content-Type' => 'application/json',
+        $response = \Illuminate\Support\Facades\Http::withHeaders([
+            'Content-Type'  => 'application/json',
             'Authorization' => 'Bearer ' . $this->authorization,
-        ])->post($this->endpoint, $data);
+        ])->post($this->endpoint, $payload);
 
         if ($response->failed()) {
-            return response()->json(['error' => 'Error sending the message: ' . $response->body()], 500);
+            return response()->json([
+                'error'  => 'Error contacting model.',
+                'detail' => $response->body(),
+            ], 500);
         }
-        $resultMessage = $response->json()['choices'][0]['message']['content'];
-        return response()->json(['reply' => $resultMessage]);
 
+        $reply = data_get($response->json(), 'choices.0.message.content', 'Sorry, something went wrong.');
+        return response()->json(['reply' => $reply]);
     }
+
 
 
 
@@ -120,7 +155,4 @@ class OpenAIController extends Controller
         }
         return response()->json(['status' => 'error', 'message' => 'Bot not found'], 404);
     }
-
-
-
 }

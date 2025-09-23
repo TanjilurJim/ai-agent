@@ -9,60 +9,119 @@ use Illuminate\Support\Str;
 
 class WidgetController extends Controller
 {
-    public function make()
+    public function index()
     {
-        $widget = Widget::where('user_id', auth()->id())->first();
-        return view('dashboard.makebot', compact('widget'));
+        $widgets = Widget::mine()->latest()->paginate(12);
+        return view('dashboard.widget.index', compact('widgets'));
     }
 
-
-
-
+    public function create()
+    {
+        $widget = new Widget();
+        return view('dashboard.widget.edit', compact('widget'));
+    }
 
     public function store(Request $request)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'welcomeMessage' => 'required|string',
-            'color' => 'required|string|max:255',
+        $data = $request->validate([
+            'name'           => 'required|string|max:255',
+            'widgetName'     => 'nullable|string|max:255',
+            'welcomeMessage' => 'required|string|max:255',
+            'color'          => 'required|string|max:20',
+            'avatar'         => 'nullable|image|max:2048',
+            'personality_id' => 'nullable|exists:personalities,id',
         ]);
 
-        $api_key = Str::random(20);
-
-        // Check if a widget already exists for the user
-        $widget = Widget::where('user_id', auth()->user()->id)->first();
-
-        if (!$widget) {
-            // Create a new Widget
-            $widget = new Widget();
-            $widget->api_key = $api_key;
-            $subscription = new Subscription();
-            $subscription->status = "Pending";
-            $subscription->api_key = $api_key;
-            $subscription->token = 10;
-            $subscription->user_id = auth()->user()->id;
-            $subscription->save();
+        // Ownership guard: prevent attaching someone else’s personality
+        if (!empty($data['personality_id'])) {
+            abort_unless(
+                \App\Models\Personality::where('id', $data['personality_id'])
+                    ->where('user_id', auth()->id())
+                    ->exists(),
+                403
+            );
         }
 
-        // Update widget data (both for new and existing widgets)
-        $widget->name = $request->name;
-        $widget->welcomeMessage = $request->welcomeMessage;
-        $widget->color = $request->color;
-        $widget->widgetName = $request->widgetName;
-        $widget->user_id = auth()->user()->id;
+        $widget = new Widget($data);
+        $widget->user_id = auth()->id();
 
-        // Handle avatar upload
         if ($request->hasFile('avatar')) {
             $file = $request->file('avatar');
             $filename = time() . '_' . $file->getClientOriginalName();
-            $filePath = 'uploads';
-            $file->move(public_path($filePath), $filename);
-            $widget->avatar = asset($filePath . '/' . $filename);
+            $file->move(public_path('uploads'), $filename);
+            $widget->avatar = 'uploads/' . $filename; // store relative path consistently
         }
 
         $widget->save();
 
-        return redirect()->back()->with('success', $widget->wasRecentlyCreated ? 'Widget created successfully.' : 'Widget updated successfully.');
+        \App\Models\Subscription::firstOrCreate(
+            ['api_key' => $widget->api_key],
+            ['status' => 'Pending', 'token' => 10, 'user_id' => auth()->id()]
+        );
+
+        return redirect()->route('widgets.edit', $widget)->with('success', 'Widget created successfully.');
     }
 
+
+
+
+    public function edit(Widget $widget)
+    {
+        abort_unless($widget->user_id === auth()->id(), 403);
+        return view('dashboard.widget.edit', compact('widget'));
+    }
+
+    public function update(Request $request, Widget $widget)
+    {
+        abort_unless($widget->user_id === auth()->id(), 403);
+
+        $data = $request->validate([
+            'name'           => 'required|string|max:255',
+            'widgetName'     => 'nullable|string|max:255',
+            'welcomeMessage' => 'required|string|max:255',
+            'color'          => 'required|string|max:20',
+            'avatar'         => 'nullable|image|max:2048',
+            'is_active'      => 'nullable|boolean',
+            'personality_id' => 'nullable|exists:personalities,id',
+        ]);
+
+        if (!empty($data['personality_id'])) {
+            abort_unless(
+                \App\Models\Personality::where('id', $data['personality_id'])
+                    ->where('user_id', auth()->id())
+                    ->exists(),
+                403
+            );
+        }
+
+        $widget->fill($data);
+
+        if ($request->hasFile('avatar')) {
+            $file = $request->file('avatar');
+            $filename = time() . '_' . \Illuminate\Support\Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME))
+                . '.' . $file->getClientOriginalExtension();
+            $file->move(public_path('uploads'), $filename);
+            $widget->avatar = 'uploads/' . $filename; // keep relative
+        }
+
+        $widget->save();
+
+        return back()->with('success', 'Widget updated successfully.');
+    }
+
+    public function toggle(Widget $widget)
+    {
+        abort_unless($widget->user_id === auth()->id(), 403);
+        $widget->is_active = ! $widget->is_active;
+        $widget->save();
+
+        return back()->with('success', $widget->is_active ? 'Widget activated.' : 'Widget deactivated.');
+    }
+
+    public function destroy(Widget $widget)
+    {
+        abort_unless($widget->user_id === auth()->id(), 403);
+        $widget->delete();
+        return redirect()->route('widgets.index')->with('success', 'Widget deleted successfully.');
+    }
 }

@@ -7,8 +7,8 @@
         <div class="row">
             <div class="col-sm-12">
                 <div class="page-title-box d-md-flex justify-content-md-between align-items-center">
-                    <h5 class="fw-medium"><i class="fa-solid fa-file-lines"></i> Page List</h5>
-                    <a href="/dashboard/train-bot/add-page" class="btn btn-sm btn-primary"><i  style="margin-right: 5px" class="fa-solid fa-plus"></i> Add New Page</a>
+                    <h5 class="fw-medium"><i class="fa-solid fa-file-lines"></i> Personality List</h5>
+                    <a href="/dashboard/train-bot/add-page" class="btn btn-outline-primary"><i  style="margin-right: 5px" class="fa-solid fa-plus"></i> Add New Personality</a>
                 </div>
             </div>
         </div>
@@ -16,7 +16,7 @@
         <!-- Search Bar -->
         <div class="row mt-3">
             <div class="col-md-6">
-                <input type="text" id="search" class="form-control" placeholder="🔍 Search pages...">
+                <input type="text" id="search" class="form-control" placeholder="🔍 Search...">
             </div>
         </div>
 

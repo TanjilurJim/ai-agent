@@ -20,7 +20,7 @@
                     </li>
                     @if (auth()->user()->role == 'admin')
                         <li class="nav-item">
-                            <a class="nav-link" href="/dashboard">
+                            <a class="nav-link" href="{{route('dashboard')}}">
                                 <i class="iconoir-report-columns menu-icon"></i>
                                 <span>Dashboard</span>
                                 <span class="badge text-bg-info ms-auto">New</span>
@@ -28,7 +28,7 @@
                         </li>
                     @endif
                     <li class="nav-item">
-                        <a class="nav-link" href="/dashboard/widget">
+                        <a class="nav-link" href="{{route('widgets.index')}}">
                             <i class="fas fa-robot menu-icon"></i>
                             <span>Widget</span>
                         </a>

@@ -14,7 +14,8 @@ function getScriptQueryParam(param) {
 
 var link2 = document.createElement("link");
 link2.rel = "stylesheet";
-link2.href = "https://ai-agent.rafusoft.com/assets/frontend/style.css";
+// link2.href = "http://ai-agent.test/api/chat/assets/frontend/style.css";
+link2.href = "http://ai-agent.test/assets/frontend/style.css";
 document.head.appendChild(link2);
 
 
@@ -77,7 +78,7 @@ const API_KEY = getScriptQueryParam('api_key');
 
 
 const getWidget = () => {
-    fetch(`https://ai-agent.rafusoft.com/api/widget/${API_KEY}`)
+    fetch(`http://ai-agent.test/api/widget/${API_KEY}`)
         .then(res => res.json())
         .then(data => {
             document.getElementById('avatar').src = data.bot.avatar;
@@ -159,7 +160,7 @@ async function sendMessage(event) {
 // Fetch response from server
 async function fetchBotResponse(message) {
     try {
-        const response = await fetch(`https://ai-agent.rafusoft.com/api/chat/${API_KEY}`, {
+        const response = await fetch(`http://ai-agent.test/api/chat/${API_KEY}`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"

@@ -24,7 +24,7 @@
                         <div class="d-flex justify-content-between align-items-center">
                             <p class="fw-bold">CDN</p>
                             @php
-                                $scriptTag = '<script src="' . env('APP_URL') . 'chat/script/main.js?api_key=' . ($subscription ? $subscription->api_key : '') . '" defer></script>';
+                                $scriptTag = '<script src="' . env('APP_URL') . '/chat/script/main.js?api_key=' . ($subscription ? $subscription->api_key : '') . '" defer></script>';
                                 $escapedScriptTag = str_replace(['<', '>'], ['&lt;', '&gt;'], $scriptTag);
                             @endphp
                             <button 
