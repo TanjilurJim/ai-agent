@@ -16,11 +16,11 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
+return $request->user();
 });
 
 
-
+Route::post('/chat/{api_key}/start', [OpenAIController::class, 'start']);
 
 Route::post('/chat/{api_key}', [OpenAIController::class, 'chat']);
 Route::get('/widget/{api_key}', [OpenAIController::class, 'widget']);

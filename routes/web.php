@@ -10,7 +10,7 @@ use App\Http\Controllers\WidgetController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\PersonalityController;
 
-
+use App\HttpControllers\WidgetLiveController;
 
 
 
@@ -43,6 +43,15 @@ Route::get('/test-ollama-connection', function() {
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard/users', [DashboardController::class, 'user'])->name('dashboard.user');
+
+
+    // live chat
+
+    Route::get('/widgets/{widget}/live', [\App\Http\Controllers\WidgetLiveController::class, 'live'])
+        ->name('widgets.live');
+
+    Route::get('/widgets/{widget}/logs', [\App\Http\Controllers\WidgetLiveController::class, 'logs'])
+        ->name('widgets.logs');
     
     // Route::get('/dashboard/train-bot',  [DashboardController::class, 'train'])->name('dashboard.train');
     Route::get('/dashboard/train-bot',              [PersonalityController::class, 'train'])->name('dashboard.train');

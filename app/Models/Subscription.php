@@ -20,4 +20,9 @@ class Subscription extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function widget()
+    {
+        return $this->belongsTo(\App\Models\Widget::class, 'api_key', 'api_key');
+    }
 }

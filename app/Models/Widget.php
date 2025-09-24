@@ -22,6 +22,8 @@ class Widget extends Model
         'personality_id',
     ];
 
+    protected $appends = ['avatar_url'];
+
     protected static function booted()
     {
         static::creating(function ($w) {
@@ -30,9 +32,12 @@ class Widget extends Model
         });
     }
 
-    public function personality()
+    public function personalities()
     {
-        return $this->belongsTo(Personality::class);
+        return $this->belongsToMany(Personality::class, 'personality_widget')
+            ->withPivot('order')
+            ->withTimestamps()
+            ->orderBy('personality_widget.order');
     }
 
     public function getAvatarUrlAttribute(): string
@@ -43,14 +48,15 @@ class Widget extends Model
             return asset('assets/images/upload-placeholder.jpg');
         }
 
-        // If DB still has old absolute URLs, just return them.
+        // If it's already absolute, just return it
         if (Str::startsWith($path, ['http://', 'https://'])) {
             return $path;
         }
 
-        // Normalize leading slash or plain relative path -> absolute URL
+        // Make relative paths absolute using APP_URL
         return asset(ltrim($path, '/'));
     }
+
 
     public function user()
     {

@@ -48,6 +48,11 @@
                                             @csrf @method('DELETE')
                                             <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
                                         </form>
+                                        <a class="btn btn-sm btn-outline-success"
+                                            href="{{ route('widgets.live', $w) }}">Live</a>
+                                        <a class="btn btn-sm btn-outline-info"
+                                            href="{{ route('widgets.logs', $w) }}">Logs</a>
+
                                     </div>
                                 </div>
                             </div>

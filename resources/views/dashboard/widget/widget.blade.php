@@ -121,6 +121,22 @@
             /* keep some padding */
         }
 
+        .lead-gate {
+            padding: 12px;
+        }
+
+        .lead-form {
+            display: grid;
+            gap: 8px;
+            grid-template-columns: 1fr;
+        }
+
+        .lead-form input {
+            padding: .6rem .75rem;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+
         /* Input: grow, but allow shrinking on tiny screens */
         .chat-footer input {
             flex: 1 1 auto;
@@ -180,6 +196,16 @@
                         alt="">
                     <h6 class="mt-2" id="widget_name"> {{ $widget->name ?? 'Widget name' }}</h6>
                 </div>
+
+                <div id="leadGate" class="lead-gate" style="display:none">
+                    <div class="lead-form">
+                        <input type="text" id="leadName" placeholder="Your name *">
+                        <input type="tel" id="leadMobile" placeholder="Mobile *">
+                        <input type="email" id="leadEmail" placeholder="Email (optional)">
+                        <button id="leadStartBtn" type="button" class="btn btn-primary">Start</button>
+                    </div>
+                </div>
+
                 <div class="messages" id="messages">
                     <div id="welcome_message_w" class="message bot-message">
                         {{ $widget->welcomeMessage ?? 'Hi! How can Ai Agent assist you today?' }}</div>

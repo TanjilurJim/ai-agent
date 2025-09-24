@@ -165,7 +165,10 @@ public function destroy($id)
 
 
 public function subscriber(){
-    $subscribers = Subscription::with('user')->get();
+    $subscribers = Subscription::with(['user', 'widget:id,api_key,name'])
+        ->latest()
+        ->paginate(10);
+
     return view('dashboard.subscriber', compact('subscribers'));
 }
 

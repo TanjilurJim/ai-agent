@@ -1,7 +1,9 @@
 <?php
 
 use Illuminate\Support\Facades\Broadcast;
-
+use App\Models\Widget;
+use App\Models\ChatSession;
+use App\Models\User;
 /*
 |--------------------------------------------------------------------------
 | Broadcast Channels
@@ -12,6 +14,33 @@ use Illuminate\Support\Facades\Broadcast;
 | used to check if an authenticated user can listen to the channel.
 |
 */
+
+Broadcast::channel('widgets.{widgetId}', function ($user, $widgetId) {
+    // Admins see all widgets
+    if (method_exists($user, 'isAdmin') && $user->isAdmin()) {
+        return true;
+    }
+
+    // Otherwise only the owner of the widget may listen
+    return Widget::where('id', $widgetId)
+        ->where('user_id', $user->id)
+        ->exists();
+});
+
+Broadcast::channel('sessions.{sessionId}', function ($user, $sessionId) {
+    // Admins see all sessions
+    if (method_exists($user, 'isAdmin') && $user->isAdmin()) {
+        return true;
+    }
+
+    // Resolve the session → widget → owner
+    $session = ChatSession::find($sessionId);
+    if (!$session) return false;
+
+    $widget = Widget::find($session->widget_id);
+    return $widget && $widget->user_id === $user->id;
+});
+
 
 Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
     return (int) $user->id === (int) $id;

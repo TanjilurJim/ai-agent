@@ -24,4 +24,11 @@ class Personality extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function widgets()
+    {
+        return $this->belongsToMany(Widget::class, 'personality_widget')
+            ->withPivot('order')
+            ->withTimestamps();
+    }
 }
