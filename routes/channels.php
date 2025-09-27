@@ -42,6 +42,21 @@ Broadcast::channel('sessions.{sessionId}', function ($user, $sessionId) {
 });
 
 
+Broadcast::channel('sessions.uuid.{sessionUuid}', function ($user, $sessionUuid) {
+    // Admins see all sessions
+    if (method_exists($user, 'isAdmin') && $user->isAdmin()) {
+        return true;
+    }
+
+    // Look up by UUID (chat_sessions.session_id), not the numeric PK
+    $session = \App\Models\ChatSession::where('session_id', $sessionUuid)->first();
+    if (!$session) return false;
+
+    $widget = \App\Models\Widget::find($session->widget_id);
+    return $widget && $widget->user_id === $user->id;
+});
+
+
 Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
     return (int) $user->id === (int) $id;
 });

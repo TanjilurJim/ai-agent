@@ -99,7 +99,17 @@ Route::middleware('auth')->group(function () {
 });
 
 
-
+// routes/web.php
+Route::get('/test-broadcast/{widget}', function (\App\Models\Widget $widget) {
+    broadcast(new \App\Events\MessageCreated(
+        \App\Models\ChatMessage::firstOrCreate([
+            'chat_session_id' => \App\Models\ChatSession::where('widget_id',$widget->id)->value('id'),
+            'role' => 'assistant',
+            'content' => 'Hello from test route!'
+        ])
+    ));
+    return 'ok';
+})->middleware(['web','auth']);
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
