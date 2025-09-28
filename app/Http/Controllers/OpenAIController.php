@@ -260,12 +260,13 @@ class OpenAIController extends Controller
                 'personalities.items' => fn($q) => $q->orderBy('order'),
             ])->first();
 
-        if (!$widget)     return response()->json(['reply' => 'Invalid API key.'], 404);
+        if (!$widget) return response()->json(['reply' => 'Invalid API key.'], 404);
         if (!$widget->is_active) return response()->json(['reply' => 'Widget is inactive.']);
 
         $subscriber = Subscription::where('api_key', $api_key)->first();
-        if (!$subscriber)                 return response()->json(['reply' => 'Invalid API key.'], 404);
-        if ($subscriber->status !== 'active') return response()->json(['reply' => 'Subscription limit reached or inactive.']);
+        if (!$subscriber) return response()->json(['reply' => 'Invalid API key.'], 404);
+        if ($subscriber->status !== 'active')
+            return response()->json(['reply' => 'Subscription limit reached or inactive.']);
 
         $session = ChatSession::where([
             'api_key'    => $api_key,
@@ -274,13 +275,33 @@ class OpenAIController extends Controller
 
         if (!$session) return response()->json(['reply' => 'Please start the chat first.'], 422);
 
+        // ── NEW: pull user text early + pause guard ────────────────────────────────
+        $userText = $request->string('message');
+
+        if ($session->bot_paused_until && now()->lt($session->bot_paused_until)) {
+            // store user msg and broadcast
+            $userMsg = $session->messages()->create([
+                'role'    => 'user',
+                'content' => $userText,
+            ]);
+            event(new MessageCreated($userMsg));
+
+            $notice = "A human operator is replying — the bot is paused.";
+            $botMsg = $session->messages()->create([
+                'role'    => 'assistant',
+                'content' => $notice,
+            ]);
+            event(new MessageCreated($botMsg));
+
+            return response()->json(['reply' => $notice]);
+        }
+        // ──────────────────────────────────────────────────────────────────────────
+
         // ---- Build system/context ----
         $about = BotContent::where('user_id', $widget->user_id)->value('content') ?? '';
 
         $ctx = [];
-        if ($about !== '') {
-            $ctx[] = "ABOUT THE BUSINESS:\n" . trim($about);
-        }
+        if ($about !== '') $ctx[] = "ABOUT THE BUSINESS:\n" . trim($about);
         $ctx[] = "USER PROFILE:\n"
             . "Name: "   . ($session->name   ?: 'N/A') . "\n"
             . "Mobile: " . ($session->mobile ?: 'N/A') . "\n"
@@ -314,13 +335,11 @@ class OpenAIController extends Controller
             . "- Search google or website only if a personality explicitly provides instructions.\n\n"
             . implode("\n\n", $ctx);
 
-        // ---- Get short history BEFORE saving new user message ----
+        // ---- Short history BEFORE saving new user message ----
         $history = $session->messages()
             ->latest('id')->take(6)->get()->reverse()
             ->map(fn($m) => ['role' => $m->role, 'content' => $m->content])
             ->values()->all();
-
-        $userText = $request->string('message');
 
         $messages = array_merge(
             [['role' => 'system', 'content' => $system]],
@@ -360,6 +379,7 @@ class OpenAIController extends Controller
 
         return response()->json(['reply' => $reply]);
     }
+
 
 
     public function widget($api_key)
