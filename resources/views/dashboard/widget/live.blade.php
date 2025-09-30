@@ -376,21 +376,31 @@
         }
 
         // Bubbles
+        // Bubbles
         function appendBubble(role, content, ts) {
             const r = (role || '').toLowerCase();
+
             const isOperator = r === 'operator';
             const isAssistant = r === 'assistant' || r === 'bot' || r === 'ai';
             const isVisitor = r === 'user' || r === 'visitor';
             const isSystem = r === 'system' || r === 'event';
 
-            // Sides: operator on the right; everyone else on the left
+            // Convenience: staff = assistant OR operator
+            const isStaff = isAssistant || isOperator;
+
+            // Side: operators appear on the right (admin UI). Everyone else on left
             const sideClass = isOperator ? 'row row--me' : 'row';
-            // Bubble visuals (keep your CSS tokens)
-            const bubClass =
-                isSystem ? 'bubble bubble--in' :
-                isAssistant ? 'bubble bubble--in' :
-                isVisitor ? 'bubble bubble--out' :
-                isOperator ? 'bubble bubble--out' :
+
+            // Bubble visuals — pick "in" for incoming (bot/visitor/system),
+            // and "out" for operator (your messages) — adjust if you prefer otherwise.
+            const bubClass = isSystem ?
+                'bubble bubble--in' :
+                isAssistant ?
+                'bubble bubble--in' :
+                isVisitor ?
+                'bubble bubble--out' :
+                isOperator ?
+                'bubble bubble--out' :
                 'bubble bubble--in';
 
             // day divider
@@ -400,8 +410,7 @@
                 lastDayShown = day;
             }
 
-            const label =
-                isOperator ? 'Operator' :
+            const label = isOperator ? 'Operator' :
                 isAssistant ? 'Assistant' :
                 isVisitor ? 'Visitor' :
                 isSystem ? r.toUpperCase() :
@@ -506,8 +515,9 @@
 
             opToggle.disabled = true;
             try {
+                const targetId = sessionPkByUuid.get(active) || active; // UUID → numeric PK if we have it
                 const res = await fetch(
-                    `{{ url('/widgets/' . $widget->id) }}/sessions/${encodeURIComponent(active)}/toggle-pause`, {
+                    `{{ url('/widgets/' . $widget->id) }}/sessions/${encodeURIComponent(targetId)}/toggle-pause`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -516,7 +526,8 @@
                         },
                         credentials: 'same-origin',
                         body: JSON.stringify(payload),
-                    });
+                    }
+                );
                 const json = await res.json().catch(() => ({}));
                 if (!res.ok) throw new Error(JSON.stringify(json));
 

@@ -56,6 +56,11 @@ Broadcast::channel('sessions.uuid.{sessionUuid}', function ($user, $sessionUuid)
     return $widget && $widget->user_id === $user->id;
 });
 
+Broadcast::channel('sessions.uuid.{sessionUuid}', function ($user = null, $sessionUuid) {
+    // Anyone with a valid session UUID may listen (public widget visitor)
+    return ChatSession::where('session_id', $sessionUuid)->exists();
+});
+
 
 Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
     return (int) $user->id === (int) $id;

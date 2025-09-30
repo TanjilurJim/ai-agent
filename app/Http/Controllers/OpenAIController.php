@@ -338,8 +338,10 @@ class OpenAIController extends Controller
         // ---- Short history BEFORE saving new user message ----
         $history = $session->messages()
             ->latest('id')->take(6)->get()->reverse()
+            ->filter(fn($m) => in_array($m->role, ['user', 'assistant'])) // exclude 'operator'
             ->map(fn($m) => ['role' => $m->role, 'content' => $m->content])
             ->values()->all();
+
 
         $messages = array_merge(
             [['role' => 'system', 'content' => $system]],
