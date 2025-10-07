@@ -40,7 +40,7 @@
 @section('content')
     <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 
-    @php
+    {{-- @php
         $selectedId = (int) request('session');
         /** @var \App\Models\ChatSession|null $selected */
         $selected = $sessions->firstWhere('id', $selectedId) ?? $sessions->first();
@@ -51,7 +51,29 @@
             'open' => $sessions->filter(fn($s) => is_null($s->closed_at))->count(),
             'closed' => $sessions->filter(fn($s) => !is_null($s->closed_at))->count(),
         ];
-    @endphp
+    @endphp --}}
+
+    {{-- @php
+        $isLeads = request('filter') === 'leads';
+
+        // counts are needed for the sidebar on every tab
+        $counts = [
+            'unattended' => $sessions->filter(fn($s) => !$s->messages->firstWhere('role', 'operator'))->count(),
+            'open' => $sessions->filter(fn($s) => is_null($s->closed_at))->count(),
+            'closed' => $sessions->filter(fn($s) => !is_null($s->closed_at))->count(),
+        ];
+
+        // only pick a selected session when not on the Leads tab
+        $selected = null;
+        $selectedId = null;
+        if (!$isLeads) {
+            $selectedId = (int) request('session');
+            $selected = $sessions->firstWhere('id', $selectedId) ?? $sessions->first();
+            $selectedId = $selected?->id;
+        }
+    @endphp --}}
+
+
 
     <div class="logs-container container-fluid p-0">
         {{-- [!!] KEY CHANGE HERE [!!] --}}
@@ -86,6 +108,11 @@
                             <span
                                 class="rounded-md bg-neutral-200 px-2 py-0.5 text-xs font-semibold text-neutral-700">{{ $counts['closed'] }}</span>
                         </a>
+                        <a href="{{ request()->fullUrlWithQuery(['filter' => 'leads', 'session' => null, 'lead' => null]) }}"
+   class="flex items-center justify-between rounded-md px-3 py-2 text-sm transition hover:bg-neutral-100 {{ request('filter') === 'leads' ? 'bg-neutral-100' : '' }}">
+  <span class="text-neutral-800">Leads</span>
+  <span class="rounded-md bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">{{ $leadCount }}</span>
+</a>
 
                         <div class="my-3 border-t border-neutral-200"></div>
 
@@ -125,8 +152,9 @@
                 </aside>
 
                 {{-- Sessions List - Full width on mobile, fixed width on lg+ --}}
+                {{-- Sessions / Leads List --}}
                 <section
-                    class="{{ $selectedId ? 'hidden lg:flex' : 'flex' }} w-full lg:w-[380px] min-w-0 flex-shrink-0 flex-col border-r border-neutral-200">
+                    class="{{ !$isLeads && ($selectedId ?? null) ? 'hidden lg:flex' : 'flex' }} w-full lg:w-[380px] min-w-0 flex-shrink-0 flex-col border-r border-neutral-200">
                     {{-- Mobile Header --}}
                     <div class="lg:hidden flex items-center justify-between border-b border-neutral-200 bg-white px-4 py-3">
                         <div class="flex items-center gap-3">
@@ -138,7 +166,8 @@
                                         clip-rule="evenodd" />
                                 </svg>
                             </button>
-                            <h1 class="text-lg font-semibold text-neutral-900">Chat Sessions</h1>
+                            <h1 class="text-lg font-semibold text-neutral-900">{{ $isLeads ? 'Leads' : 'Chat Sessions' }}
+                            </h1>
                         </div>
                         <div class="flex gap-2">
                             <a href="{{ route('widgets.live', $widget) }}" target="_blank"
@@ -149,190 +178,233 @@
                     </div>
 
                     <div class="flex-1 overflow-y-auto">
-                        @forelse ($sessions as $s)
-                            @php
-                                $last = $s->messages->first();
-                                $tag = !$s->messages->firstWhere('role', 'operator')
-                                    ? 'unattended'
-                                    : ($s->closed_at
-                                        ? 'closed'
-                                        : 'open');
-                            @endphp
+  @if($isLeads)
+      @forelse ($leads as $L)
+          <a href="{{ request()->fullUrlWithQuery(['filter'=>'leads','lead'=>$L->id,'session'=>null]) }}"
+             class="block border-b border-neutral-100 transition hover:bg-neutral-50 {{ $L->id === $selectedLeadId ? 'bg-neutral-50' : 'bg-white' }}">
+              <div class="flex items-center gap-3 px-4 py-3.5">
+                  <div class="grid h-9 w-9 place-items-center rounded-full bg-blue-100 text-sm font-extrabold text-blue-800">
+                      {{ strtoupper(mb_substr(($L->name ?: $L->email ?: $L->mobile ?: 'L'), 0, 1)) }}
+                  </div>
+                  <div class="min-w-0 flex-1">
+                      <div class="flex items-center justify-between gap-2">
+                          <div class="truncate font-medium text-neutral-900">
+                              {{ $L->name ?: ($L->email ?: ($L->mobile ?: 'Lead #'.$L->id)) }}
+                          </div>
+                          <span class="whitespace-nowrap text-xs text-neutral-500">
+                              {{ $L->created_at->diffForHumans() }}
+                          </span>
+                      </div>
+                      <div class="mt-0.5 space-x-3 truncate text-sm text-neutral-600">
+                          @if($L->email)
+                              <span> {{ $L->email }}</span>
+                          @endif
+                          @if($L->mobile)
+                              <span>📞 {{ $L->mobile }}</span>
+                          @endif
+                      </div>
+                  </div>
+              </div>
+          </a>
+      @empty
+          <div class="p-6 text-center text-sm text-neutral-500">No leads yet.</div>
+      @endforelse
+  @else
+      {{-- original sessions list (unchanged) --}}
+      @forelse ($sessions as $s)
+          @php
+              $last = $s->messages->first();
+              $tag = !$s->messages->firstWhere('role', 'operator') ? 'unattended' : ($s->closed_at ? 'closed' : 'open');
+          @endphp
+          <a href="{{ request()->fullUrlWithQuery(['session' => $s->id, 'lead' => null]) }}"
+             class="block border-b border-neutral-100 transition hover:bg-neutral-50 {{ $s->id === $selectedId ? 'bg-neutral-50' : 'bg-white' }}">
+              <div class="flex items-center gap-3 px-4 py-3.5">
+                  <div class="grid h-9 w-9 place-items-center rounded-full bg-amber-300 text-sm font-extrabold text-amber-900">
+                      {{ $s->display_initial }}
+                  </div>
+                  <div class="min-w-0 flex-1">
+                      <div class="flex items-center justify-between gap-2">
+                          <div class="truncate font-medium text-neutral-900">{{ $s->display_name }}</div>
+                          <div class="flex items-center gap-2">
+                              @if ($tag === 'unattended')
+                                  <span class="rounded-md bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">Unattended</span>
+                              @elseif($tag === 'open')
+                                  <span class="rounded-md bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">Open</span>
+                              @else
+                                  <span class="rounded-md bg-neutral-200 px-2 py-0.5 text-xs font-semibold text-neutral-700">Closed</span>
+                              @endif
+                              <span class="whitespace-nowrap text-xs text-neutral-500">
+                                  {{ optional($last?->created_at ?? $s->created_at)->diffForHumans() }}
+                              </span>
+                          </div>
+                      </div>
+                      <div class="truncate text-sm text-neutral-600">
+                          {{ $last?->content ? Str::limit(strip_tags($last->content), 70) : 'Started a conversation' }}
+                      </div>
+                  </div>
+              </div>
+          </a>
+      @empty
+          <div class="p-6 text-center text-sm text-neutral-500">No sessions yet.</div>
+      @endforelse
+  @endif
+</div>
 
-                            <a href="{{ request()->fullUrlWithQuery(['session' => $s->id]) }}"
-                                class="block border-b border-neutral-100 transition hover:bg-neutral-50 {{ $s->id === $selectedId ? 'bg-neutral-50' : 'bg-white' }}">
-                                <div class="flex items-center gap-3 px-4 py-3.5">
-                                    <div
-                                        class="grid h-9 w-9 flex-shrink-0 place-items-center rounded-full bg-amber-300 text-sm font-extrabold text-amber-900">
-                                        {{ strtoupper(mb_substr($s->visitor_name ?? 'U', 0, 1)) }}
-                                    </div>
+<div class="border-t border-neutral-200 px-3 py-2">
+  @if($isLeads)
+      {{ $leads->appends(request()->except('page'))->links() }}
+  @else
+      {{ $sessions->appends(request()->except('page'))->links() }}
+  @endif
+</div>
 
-                                    <div class="min-w-0 flex-1">
-                                        <div class="flex items-center justify-between gap-2">
-                                            <div class="truncate font-medium text-neutral-900">
-                                                {{ $s->visitor_name ?? 'Visitor #' . $s->id }}
-                                            </div>
-                                            <div class="flex items-center gap-2">
-                                                @if ($tag === 'unattended')
-                                                    <span
-                                                        class="rounded-md bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">Unattended</span>
-                                                @elseif($tag === 'open')
-                                                    <span
-                                                        class="rounded-md bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">Open</span>
-                                                @else
-                                                    <span
-                                                        class="rounded-md bg-neutral-200 px-2 py-0.5 text-xs font-semibold text-neutral-700">Closed</span>
-                                                @endif
-                                                <span class="whitespace-nowrap text-xs text-neutral-500">
-                                                    {{ optional($last?->created_at ?? $s->created_at)->diffForHumans() }}
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        <div class="truncate text-sm text-neutral-600">
-                                            {{ $last?->content ? Str::limit(strip_tags($last->content), 70) : 'Started a conversation' }}
-                                        </div>
-                                    </div>
-                                </div>
-                            </a>
-                        @empty
-                            <div class="p-6 text-center text-sm text-neutral-500">No sessions yet.</div>
-                        @endforelse
-                    </div>
 
                     <div class="border-t border-neutral-200 px-3 py-2">
-                        {{ $sessions->appends(request()->except('page'))->links() }}
+                        {{ ($isLeads ? $leads : $sessions)->appends(request()->except('page'))->links() }}
                     </div>
                 </section>
 
+
                 {{-- Chat View - Hidden on mobile when no session selected, shown when session selected --}}
-                <section
-                    class="{{ $selectedId ? 'flex' : 'hidden lg:flex' }} w-full flex-1 min-w-0 flex-col relative bg-white">
-                    @if (!$selected)
-                        <div class="grid h-full place-items-center text-sm text-neutral-500">
-                            Select a conversation to view.
-                        </div>
-                    @else
-                        <div id="chatWrap" data-widget-id="{{ $widget->id }}" data-session-id="{{ $selected->id }}"
-                            class="flex h-full min-w-0 flex-col">
+                {{-- Right pane: Lead details OR Chat view --}}
+<section class="{{ $isLeads ? 'flex' : ($selectedId ? 'flex' : 'hidden lg:flex') }} w-full flex-1 min-w-0 flex-col relative bg-white">
+  @if($isLeads)
+      @if(empty($selectedLead))
+          <div class="grid h-full place-items-center text-sm text-neutral-500">
+              Select a lead to view.
+          </div>
+      @else
+          <div class="h-full overflow-auto p-6">
+              <div class="mx-auto w-full max-w-2xl">
+                  <div class="mb-4">
+                      <h2 class="text-xl font-semibold text-neutral-900">
+                          {{ $selectedLead->name ?: 'Lead #'.$selectedLead->id }}
+                      </h2>
+                      <div class="text-sm text-neutral-500">
+                          Captured {{ $selectedLead->created_at->diffForHumans() }}
+                      </div>
+                  </div>
 
-                            {{-- Chat Header --}}
-                            <div
-                                class="flex flex-shrink-0 items-center justify-between border-b border-neutral-200 bg-white px-4 py-3">
-                                <div class="flex items-center">
-                                    <button onclick="backToSessions()"
-                                        class="lg:hidden -ml-2 mr-2 rounded-full p-2 text-neutral-600 transition hover:bg-neutral-100 hover:text-neutral-800">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20"
-                                            fill="currentColor">
-                                            <path fill-rule="evenodd"
-                                                d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
-                                                clip-rule="evenodd" />
-                                        </svg>
-                                    </button>
-                                    <div>
-                                        <div class="font-medium text-neutral-900">
-                                            {{ $selected->visitor_name ?? 'Visitor #' . $selected->id }}</div>
-                                        <div class="text-xs text-neutral-500">Session started
-                                            {{ $selected->created_at->diffForHumans() }}</div>
-                                    </div>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <form id="pauseForm" class="inline">
-                                        @csrf
-                                        <input type="hidden" name="pause"
-                                            value="{{ $selected->bot_paused_until ? 0 : 1 }}">
-                                        <button type="submit"
-                                            class="inline-flex items-center rounded-md border border-neutral-300 bg-white px-2.5 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50">
-                                            @if ($selected->bot_paused_until)
-                                                Resume Bot
-                                            @else
-                                                Pause Bot (30m)
-                                            @endif
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
+                  <div class="rounded-lg border border-neutral-200 bg-white">
+                      <div class="divide-y divide-neutral-200">
+                          <div class="flex items-center justify-between p-4">
+                              <div>
+                                  <div class="text-xs uppercase text-neutral-500">Email</div>
+                                  <div class="text-sm text-neutral-900">{{ $selectedLead->email ?: '—' }}</div>
+                              </div>
+                              @if($selectedLead->email)
+                                  <a href="mailto:{{ $selectedLead->email }}" class="text-sm text-sky-700 hover:underline">Email</a>
+                              @endif
+                          </div>
 
-                            {{-- Chat Messages --}}
-                            <div id="chatFeed" class="flex-1 overflow-y-auto bg-neutral-50 p-4">
-                                @foreach ($selected->messages->sortBy('id') as $m)
-                                    @php
-                                        // Normalize to a few buckets we care about for styling
-                                        $role = strtolower($m->role ?? '');
-                                        $isOperator = $role === 'operator';
-                                        $isSystem = in_array($role, ['system', 'event']);
-                                        $isVisitor = in_array($role, ['user', 'visitor']); // end-user
-                                        $isAssistant = in_array($role, ['assistant', 'bot', 'ai']); // your bot
+                          <div class="flex items-center justify-between p-4">
+                              <div>
+                                  <div class="text-xs uppercase text-neutral-500">Mobile</div>
+                                  <div class="text-sm text-neutral-900">{{ $selectedLead->mobile ?: '—' }}</div>
+                              </div>
+                              @if($selectedLead->mobile)
+                                  <a href="tel:{{ preg_replace('/\s+/', '', $selectedLead->mobile) }}" class="text-sm text-sky-700 hover:underline">Call</a>
+                              @endif
+                          </div>
 
-                                        // Side: operator on the right, everyone else on the left
-                                        $sideClass = $isOperator ? 'justify-end' : 'justify-start';
+                          <div class="p-4">
+                              <div class="text-xs uppercase text-neutral-500">Session</div>
+                              <div class="mt-1 flex items-center gap-2">
+                                  <code class="rounded bg-neutral-100 px-1 py-0.5 text-sm text-neutral-800">
+                                      {{ $selectedLead->session_id }}
+                                  </code>
+                                  @if($selectedLead->session)
+                                      <a href="{{ request()->fullUrlWithQuery(['filter'=>null,'session'=>$selectedLead->session->id,'lead'=>null]) }}"
+                                         class="text-sm text-emerald-700 hover:underline">Open conversation</a>
+                                  @endif
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      @endif
+  @else
+      @if (!$selected)
+          <div class="grid h-full place-items-center text-sm text-neutral-500">
+              Select a conversation to view.
+          </div>
+      @else
+          <div id="chatWrap" data-widget-id="{{ $widget->id }}" data-session-id="{{ $selected->id }}"
+               class="flex h-full min-w-0 flex-col">
+              {{-- Chat Header --}}
+              <div class="flex flex-shrink-0 items-center justify-between border-b border-neutral-200 bg-white px-4 py-3">
+                  <div class="flex items-center">
+                      <button onclick="backToSessions()"
+                              class="lg:hidden -ml-2 mr-2 rounded-full p-2 text-neutral-600 transition hover:bg-neutral-100 hover:text-neutral-800">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                              <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                          </svg>
+                      </button>
+                      <div>
+                          <div class="font-medium text-neutral-900">{{ $selected->display_name }}</div>
+                          <div class="text-xs text-neutral-500">Session started {{ $selected->created_at->diffForHumans() }}</div>
+                      </div>
+                  </div>
+                  <div class="flex items-center gap-2">
+                      <form id="pauseForm" class="inline">
+                          @csrf
+                          <input type="hidden" name="pause" value="{{ $selected->bot_paused_until ? 0 : 1 }}">
+                          <button type="submit"
+                                  class="inline-flex items-center rounded-md border border-neutral-300 bg-white px-2.5 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50">
+                              @if ($selected->bot_paused_until) Resume Bot @else Pause Bot (30m) @endif
+                          </button>
+                      </form>
+                  </div>
+              </div>
 
-                                        // Bubble styles by role
-                                        if ($isSystem) {
-                                            $bubbleClass =
-                                                'bg-neutral-200 italic text-neutral-700 border border-neutral-200';
-                                            $roleLabel = strtoupper($role); // SYSTEM or EVENT
-                                            $pillClass = 'bg-neutral-300 text-neutral-700';
-                                        } elseif ($isOperator) {
-                                            $bubbleClass = 'bg-emerald-600 text-white shadow-sm'; // your message
-                                            $roleLabel = 'Operator';
-                                            $pillClass = 'bg-emerald-600/90 text-white';
-                                        } elseif ($isAssistant) {
-                                            $bubbleClass =
-                                                'bg-white text-neutral-900 border border-neutral-200 shadow-sm'; // bot
-                                            $roleLabel = 'Assistant';
-                                            $pillClass = 'bg-sky-100 text-sky-800';
-                                        } elseif ($isVisitor) {
-                                            $bubbleClass = 'bg-neutral-100 text-neutral-900 border border-neutral-200'; // end-user
-                                            $roleLabel = 'Visitor';
-                                            $pillClass = 'bg-neutral-100 text-neutral-700';
-                                        } else {
-                                            $bubbleClass = 'bg-white text-neutral-900 border border-neutral-200';
-                                            $roleLabel = ucfirst($role ?: 'Message');
-                                            $pillClass = 'bg-neutral-100 text-neutral-700';
-                                        }
-                                    @endphp
+              {{-- Chat Messages --}}
+              <div id="chatFeed" class="flex-1 overflow-y-auto bg-neutral-50 p-4">
+                  @foreach ($selected->messages->sortBy('id') as $m)
+                      @php
+                          $role = strtolower($m->role ?? '');
+                          $isOperator = $role === 'operator';
+                          $isSystem   = in_array($role, ['system','event']);
+                          $isVisitor  = in_array($role, ['user','visitor']);
+                          $isAssistant= in_array($role, ['assistant','bot','ai']);
+                          $sideClass  = $isOperator ? 'justify-end' : 'justify-start';
+                          if($isSystem){ $bubbleClass='bg-neutral-200 italic text-neutral-700 border border-neutral-200'; $roleLabel=strtoupper($role); $pillClass='bg-neutral-300 text-neutral-700'; }
+                          elseif($isOperator){ $bubbleClass='bg-emerald-600 text-white shadow-sm'; $roleLabel='Operator'; $pillClass='bg-emerald-600/90 text-white'; }
+                          elseif($isAssistant){ $bubbleClass='bg-white text-neutral-900 border border-neutral-200 shadow-sm'; $roleLabel='Assistant'; $pillClass='bg-sky-100 text-sky-800'; }
+                          elseif($isVisitor){ $bubbleClass='bg-neutral-100 text-neutral-900 border border-neutral-200'; $roleLabel='Visitor'; $pillClass='bg-neutral-100 text-neutral-700'; }
+                          else { $bubbleClass='bg-white text-neutral-900 border border-neutral-200'; $roleLabel=ucfirst($role ?: 'Message'); $pillClass='bg-neutral-100 text-neutral-700'; }
+                      @endphp
+                      <div class="mb-2 flex {{ $sideClass }}">
+                          <div class="max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-2.5 text-[15px] leading-relaxed {{ $bubbleClass }}">
+                              {!! $isSystem ? e($m->content) : nl2br(e($m->content)) !!}
+                              <div class="mt-1 flex items-center gap-2">
+                                  <span class="text-[11px] {{ $isOperator ? 'text-white/90' : 'text-neutral-500' }}">{{ $m->created_at->format('g:i A') }}</span>
+                                  <span class="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide {{ $pillClass }}">{{ $roleLabel }}</span>
+                              </div>
+                          </div>
+                      </div>
+                  @endforeach
+                  <div class="h-3"></div>
+              </div>
 
-                                    <div class="mb-2 flex {{ $sideClass }}">
-                                        <div
-                                            class="max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-2.5 text-[15px] leading-relaxed {{ $bubbleClass }}">
-                                            {{-- content --}}
-                                            {!! $isSystem ? e($m->content) : nl2br(e($m->content)) !!}
+              {{-- Message Input --}}
+              <div class="flex-shrink-0 border-t border-neutral-200 bg-white px-4 py-3">
+                  <form id="replyForm" class="flex items-end gap-2">
+                      @csrf
+                      <textarea id="replyBox" name="message"
+                                class="h-12 max-h-40 w-full flex-1 resize-none overflow-y-auto rounded-lg border border-neutral-300 bg-white p-3 text-sm text-neutral-800 shadow-sm outline-none focus:border-neutral-400"
+                                placeholder="Type your message..."></textarea>
+                      <button id="sendBtn" type="submit"
+                              class="inline-flex h-11 items-center rounded-md bg-emerald-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-emerald-700">
+                          SEND
+                      </button>
+                  </form>
+              </div>
+          </div>
+      @endif
+  @endif
+</section>
 
-                                            {{-- timestamp + role pill --}}
-                                            <div class="mt-1 flex items-center gap-2">
-                                                <span
-                                                    class="text-[11px] {{ $isOperator ? 'text-white/90' : 'text-neutral-500' }}">
-                                                    {{ $m->created_at->format('g:i A') }}
-                                                </span>
-                                                <span
-                                                    class="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide {{ $pillClass }}">
-                                                    {{ $roleLabel }}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                @endforeach
-                                <div class="h-3"></div>
-                            </div>
-
-
-                            {{-- Message Input --}}
-                            <div class="flex-shrink-0 border-t border-neutral-200 bg-white px-4 py-3">
-                                <form id="replyForm" class="flex items-end gap-2">
-                                    @csrf
-                                    <textarea id="replyBox" name="message"
-                                        class="h-12 max-h-40 w-full flex-1 resize-none overflow-y-auto rounded-lg border border-neutral-300 bg-white p-3 text-sm text-neutral-800 shadow-sm outline-none focus:border-neutral-400"
-                                        placeholder="Type your message..."></textarea>
-                                    <button id="sendBtn" type="submit"
-                                        class="inline-flex h-11 items-center rounded-md bg-emerald-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-emerald-700">
-                                        SEND
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                    @endif
-                </section>
             </div>
         </div>
     </div>
@@ -436,7 +508,7 @@
                         bubble.className =
                             'max-w-[85%] sm:max-w-[75%] rounded-2xl bg-sky-100 px-4 py-2.5 text-[15px] leading-relaxed text-neutral-900';
                         bubble.innerHTML =
-                            `${text.replace(/\n/g, '<br>')}<div class="mt-1 text-[11px] text-neutral-500">just now<span class="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-emerald-600/90 text-white">Operator</span></div>`;
+                            `${text.replace(/\n/g, '<br>')}<div class="mt-1 text-[11px] text-neutral-500"><span>just now </span> <span class="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-emerald-600/90 text-white">Operator</span></div>`;
                         row.appendChild(bubble);
                         feed.appendChild(row);
 

@@ -109,6 +109,19 @@
         }
 
         /* no-op safeguard */
+
+        .chat-close-btn {
+            margin-left: auto;
+            cursor: pointer;
+            font-size: 1.1rem;
+            color: #fff;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        }
+
+        .chat-close-btn:hover {
+            opacity: 1;
+        }
     </style>
     <style>
         /* Footer: make it a flex row */
@@ -165,6 +178,99 @@
             position: static !important;
         }
 
+        #chat-widget.minimized .chat-box {
+            display: none;
+        }
+
+        #chat-widget.minimized::after {
+            content: '💬';
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: var(--primary-widget-color, #0a5);
+            color: #fff;
+            font-size: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            z-index: 5;
+        }
+
+        #chat-widget.minimized::after:hover {
+            background: #0b6;
+        }
+
+
+        /* --- Chat header action menu --- */
+        .chat-header {
+            position: relative;
+            /* so dropdown positions correctly */
+        }
+
+        .chat-actions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            margin-top: .25rem;
+            min-width: 180px;
+            background: #fff;
+            border: 1px solid rgba(0, 0, 0, .1);
+            border-radius: .5rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, .08);
+            z-index: 50;
+            padding: .25rem;
+            display: none;
+        }
+
+        .chat-actions.show {
+            display: block;
+        }
+
+        .chat-actions button {
+            width: 100%;
+            text-align: left;
+            border: 0;
+            background: transparent;
+            padding: .5rem .75rem;
+            border-radius: .375rem;
+            font-size: .925rem;
+        }
+
+        .chat-actions button:hover {
+            background: rgba(0, 0, 0, .04);
+        }
+
+        .chat-actions .sep {
+            height: 1px;
+            background: rgba(0, 0, 0, .08);
+            margin: .25rem .25rem;
+        }
+
+        /* Make sure the header icon is click-friendly */
+        .chat-menu-btn {
+            cursor: pointer;
+            padding: .35rem .5rem;
+            border-radius: .375rem;
+        }
+
+        .chat-menu-btn:hover {
+            background: rgba(255, 255, 255, .15);
+        }
+
+        #chat-widget .chat-box {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        #chat-widget.minimized .chat-box {
+            opacity: 0;
+            transform: scale(0.9);
+        }
+
         /* On very narrow phones, allow stacking if needed */
         @media (max-width: 360px) {
             .chat-footer {
@@ -185,8 +291,22 @@
         <div class="chat-box" id="chatBox">
             <div class="chat-header">
                 <div class="d-flex gap-3 align-items-center">
-                    <i class="fa-solid fa-bars"></i>
+                    <i id="chatMenuBtn" class="fa-solid fa-bars chat-menu-btn" aria-haspopup="true"
+                        aria-expanded="false"></i>
+
                     {{ $widget->widgetName ?? 'Widget name' }}
+                    <i id="chatCloseBtn" class="fa-solid fa-xmark chat-close-btn" title="Minimize"></i>
+                </div>
+
+                <!-- Dropdown -->
+                <div id="chatActions" class="chat-actions" role="menu" aria-hidden="true">
+                    <button id="downloadTxtBtn" type="button" role="menuitem">
+                        <i class="fa-regular fa-file-lines me-2"></i> Download chat (.txt)
+                    </button>
+                    <button id="printChatBtn" type="button" role="menuitem">
+                        <i class="fa-solid fa-print me-2"></i> Print chat
+                    </button>
+                    <!-- (Email can be added later) -->
                 </div>
             </div>
             <div class="chat-body">

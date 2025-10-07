@@ -7,6 +7,7 @@ use App\Events\MessageCreated;
 use App\Models\Widget;
 use App\Models\ChatSession;
 use App\Models\User;
+use App\Models\Lead;
 
 class WidgetLiveController extends Controller
 {
@@ -19,18 +20,70 @@ class WidgetLiveController extends Controller
         return view('dashboard.widget.live', compact('widget'));
     }
 
-    public function logs(Widget $widget)
+    public function logs(Request $request, Widget $widget)
     {
         $user = auth()->user();
         abort_unless($user->isAdmin() || $widget->user_id === $user->id, 403);
 
+        // ✅ this is the bug fix
+        $isLeads = $request->query('filter') === 'leads';
+        // or: $isLeads = (string)$request->string('filter') === 'leads';
+
         $sessions = ChatSession::where('widget_id', $widget->id)
             ->with(['messages' => fn($q) => $q->latest()])
             ->latest()
-            ->paginate(20);
+            ->paginate(20)
+            ->withQueryString();
 
-        return view('dashboard.widget.logs', compact('widget', 'sessions'));
+        // counts for the sidebar
+        $counts = [
+            'unattended' => $sessions->getCollection()
+                ->filter(fn($s) => ! $s->messages->firstWhere('role', 'operator'))->count(),
+            'open'       => $sessions->getCollection()
+                ->filter(fn($s) => is_null($s->closed_at))->count(),
+            'closed'     => $sessions->getCollection()
+                ->filter(fn($s) => ! is_null($s->closed_at))->count(),
+        ];
+
+        // leads (with session eager-loaded for “Open conversation”)
+        $leads = Lead::where('widget_id', $widget->id)
+            ->with(['session:id,session_id'])
+            ->latest()
+            ->paginate(20)
+            ->withQueryString();
+
+        $leadCount = $leads->total();
+
+        // which item is selected?
+        $selectedId = $selectedLeadId = null;
+        $selected = $selectedLead = null;
+
+        if ($isLeads) {
+            $selectedLeadId = (int) $request->query('lead');
+            $selectedLead   = $leads->getCollection()->firstWhere('id', $selectedLeadId)
+                ?? $leads->getCollection()->first();
+            $selectedLeadId = $selectedLead?->id;
+        } else {
+            $selectedId = (int) $request->query('session');
+            $selected   = $sessions->getCollection()->firstWhere('id', $selectedId)
+                ?? $sessions->getCollection()->first();
+            $selectedId = $selected?->id;
+        }
+
+        return view('dashboard.widget.logs', compact(
+            'widget',
+            'sessions',
+            'leads',
+            'leadCount',
+            'counts',
+            'isLeads',
+            'selected',
+            'selectedId',
+            'selectedLead',
+            'selectedLeadId'
+        ));
     }
+
 
     // 🔽 NEW: operator reply
     public function operatorReply(Request $request, Widget $widget, $session)

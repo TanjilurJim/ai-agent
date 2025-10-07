@@ -135,7 +135,7 @@
 
                 sessionId = data.session_id;
                 if (storageKey) localStorage.setItem(storageKey, sessionId);
-                subscribeToRealtime(sessionId); 
+                subscribeToRealtime(sessionId);
                 showLead(false);
 
                 // Optional greeting
@@ -252,4 +252,193 @@
 
     // Also wire the click on the button
     sendBtn?.addEventListener('click', () => window.sendMessage());
+</script>
+<script>
+    // ===== Header action menu toggle =====
+    const chatMenuBtn = document.getElementById('chatMenuBtn');
+    const chatActions = document.getElementById('chatActions');
+
+    function toggleMenu(open) {
+        if (!chatActions) return;
+        const willOpen = (open !== undefined) ? open : !chatActions.classList.contains('show');
+        chatActions.classList.toggle('show', willOpen);
+        if (chatMenuBtn) chatMenuBtn.setAttribute('aria-expanded', String(willOpen));
+        if (chatActions) chatActions.setAttribute('aria-hidden', String(!willOpen));
+    }
+
+    chatMenuBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleMenu();
+    });
+
+    // Close when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!chatActions?.classList.contains('show')) return;
+        if (chatActions.contains(e.target) || chatMenuBtn.contains(e.target)) return;
+        toggleMenu(false);
+    });
+
+    // ===== Helpers to collect chat and name =====
+    function getWidgetSafeName() {
+        const name = (document.getElementById('widget_name')?.innerText || 'widget').trim();
+        return name.toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '')
+            .substring(0, 50) || 'widget';
+    }
+
+    function collectChatMessages() {
+        const container = document.getElementById('messages');
+        const items = [];
+        if (!container) return items;
+
+        container.querySelectorAll('.message').forEach(el => {
+            const text = (el.textContent || '').trim();
+            if (!text) return;
+            let role = 'bot';
+            if (el.classList.contains('user-message')) role = 'user';
+            else if (el.classList.contains('bot-message')) role = 'bot';
+            items.push({
+                role,
+                content: text
+            });
+        });
+        return items;
+    }
+
+    // ===== Download as .txt =====
+    function downloadTextFile(filename, text) {
+        const blob = new Blob([text], {
+            type: 'text/plain;charset=utf-8'
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    }
+
+    function buildTxtTranscript() {
+        const messages = collectChatMessages();
+        const header = [
+            `Widget: ${document.getElementById('widget_name')?.innerText || 'Widget'}`,
+            `Session: ${sessionId || 'preview'}`,
+            `Exported: ${new Date().toLocaleString()}`,
+            ''
+        ].join('\n');
+
+        const lines = messages.map(m => {
+            const who = (m.role === 'user') ? 'User' : 'Bot';
+            return `[${who}] ${m.content}`;
+        });
+
+        return header + lines.join('\n');
+    }
+
+    document.getElementById('downloadTxtBtn')?.addEventListener('click', () => {
+        const base = getWidgetSafeName();
+        const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const name = `${base}-chat-${sessionId || 'preview'}-${stamp}.txt`;
+        downloadTextFile(name, buildTxtTranscript());
+        toggleMenu(false);
+    });
+
+    // ===== Print chat =====
+    function buildPrintableHtml() {
+        const messages = collectChatMessages();
+        const avatar = document.getElementById('avatar_preview_w')?.getAttribute('src') || '';
+        const wname = document.getElementById('widget_name')?.innerText || 'Widget';
+
+        const bubbles = messages.map(m => {
+            const cls = (m.role === 'user') ? 'user' : 'bot';
+            return `<div class="row ${cls}"><div class="bubble">${escapeHtml(m.content)}</div></div>`;
+        }).join('');
+
+        return `
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>${escapeHtml(wname)} – Chat Transcript</title>
+<style>
+  @media print { @page { margin: 12mm; } }
+  body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 16px; }
+  .header { display:flex; align-items:center; gap:12px; margin-bottom: 12px; }
+  .header img { width:48px; height:48px; border-radius:10px; object-fit:cover; }
+  .sub { color:#666; font-size: 12px; }
+  .row { display:flex; margin: 8px 0; }
+  .row.user { justify-content: flex-end; }
+  .row.bot  { justify-content: flex-start; }
+  .bubble {
+    max-width: 70ch;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: #f1f1f1;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .row.user .bubble { background: #e8f0ff; }
+  hr { border: 0; height: 1px; background: #e5e5e5; margin: 12px 0; }
+</style>
+</head>
+<body>
+  <div class="header">
+    ${avatar ? `<img src="${avatar}" alt="">` : ''}
+    <div>
+      <div><strong>${escapeHtml(wname)}</strong></div>
+      <div class="sub">Session: ${escapeHtml(String(sessionId || 'preview'))}</div>
+      <div class="sub">Exported: ${escapeHtml(new Date().toLocaleString())}</div>
+    </div>
+  </div>
+  <hr>
+  ${bubbles || '<em>No messages.</em>'}
+  <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 300); }<\/script>
+</body>
+</html>`;
+    }
+
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, c => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        } [c]));
+    }
+
+    document.getElementById('printChatBtn')?.addEventListener('click', () => {
+        const html = buildPrintableHtml();
+        const w = window.open('', '_blank', 'noopener,noreferrer');
+        if (!w) {
+            alert('Popup blocked. Please allow popups to print.');
+            return;
+        }
+        w.document.open('text/html');
+        w.document.write(html);
+        w.document.close();
+        toggleMenu(false);
+    });
+
+
+    // === Widget minimize / restore ===
+    // === Widget minimize / restore ===
+    const chatWidget = document.getElementById('chat-widget');
+    const chatCloseBtn = document.getElementById('chatCloseBtn');
+
+    // Minimize from the X (stop bubbling so container listener doesn't instantly restore)
+    chatCloseBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        chatWidget?.classList.add('minimized');
+    });
+
+    // Restore by clicking the floating bubble area (the ::after pseudo-element)
+    chatWidget?.addEventListener('click', () => {
+        if (chatWidget.classList.contains('minimized')) {
+            chatWidget.classList.remove('minimized');
+        }
+    });
 </script>

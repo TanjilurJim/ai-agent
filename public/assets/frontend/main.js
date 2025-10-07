@@ -11,6 +11,7 @@ function getScriptQueryParam(param) {
 }
 
 
+
 // api kaey 
 
 const API_KEY = getScriptQueryParam('api_key');

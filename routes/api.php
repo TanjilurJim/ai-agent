@@ -24,3 +24,7 @@ Route::post('/chat/{api_key}/start', [OpenAIController::class, 'start']);
 
 Route::post('/chat/{api_key}', [OpenAIController::class, 'chat']);
 Route::get('/widget/{api_key}', [OpenAIController::class, 'widget']);
+
+// ✅ Add this:
+Route::post('/chat/{api_key}/email',  [OpenAIController::class, 'emailTranscript'])
+     ->middleware('throttle:10,1'); // optional rate limit

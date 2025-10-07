@@ -14,4 +14,10 @@ class Lead extends Model
     {
         return $this->belongsTo(Widget::class);
     }
+    // app/Models/Lead.php
+    public function session()
+    {
+        // leads.session_id stores the UUID string; ChatSession has a 'session_id' column too
+        return $this->belongsTo(\App\Models\ChatSession::class, 'session_id', 'session_id');
+    }
 }
