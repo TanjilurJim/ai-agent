@@ -21,7 +21,7 @@ class MessageCreated implements ShouldBroadcastNow
     public function __construct(ChatMessage $message)
     {
         // Try eager relation first; fall back to direct lookup
-        $message->loadMissing('session');
+        $message->loadMissing(['session', 'attachments']);
 
         $session = $message->session
             ?: \App\Models\ChatSession::find($message->chat_session_id); // fallback if relation missing
@@ -31,6 +31,22 @@ class MessageCreated implements ShouldBroadcastNow
         $this->sessionPk   = (int) $message->chat_session_id;
         $this->sessionUuid = $session ? (string) $session->session_id : '';
 
+        // Map attachments to a safe, frontend-friendly shape.
+        // We saved url/path when uploading; url points to /public/uploads/...
+        $attachments = ($message->attachments ?? collect())->map(function ($a) {
+            return [
+                'id'       => $a->id,
+                'url'      => $a->url ?: asset($a->path),  // public URL
+                'mime'     => $a->mime,
+                'size'     => $a->size,
+                'width'    => $a->width,
+                'height'   => $a->height,
+                'filename' => basename($a->path),
+            ];
+        })->values()->all();
+
+
+
         $this->payload = [
             'id'          => $message->id,
             'widget_id'   => $this->widgetId,
@@ -38,6 +54,7 @@ class MessageCreated implements ShouldBroadcastNow
             'session_id'  => $this->sessionUuid,
             'role'        => $message->role,
             'content'     => $message->content,
+             'attachments' => $attachments,  
             'created_at'  => optional($message->created_at)->toISOString(),
         ];
 
@@ -46,7 +63,7 @@ class MessageCreated implements ShouldBroadcastNow
             'widget_channel'   => "widgets.{$this->widgetId}",
             'session_channel'  => "sessions.{$this->sessionPk}",
             'session_uuid_ch'  => "sessions.uuid.{$this->sessionUuid}",
-            'payload'          => $this->payload,
+            'payload_has_atts' => !empty($attachments),
         ]);
     }
 
@@ -63,5 +80,9 @@ class MessageCreated implements ShouldBroadcastNow
     public function broadcastAs(): string
     {
         return 'message.created';
+    }
+     public function broadcastWith(): array
+    {
+        return $this->payload;
     }
 }

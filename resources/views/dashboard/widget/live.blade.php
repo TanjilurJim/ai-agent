@@ -186,7 +186,7 @@
 @section('content')
     <div class="page-content">
         <div class="container-fluid">
-            <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-2 mt-2">
                 <h4 class="page-title mb-0">Live: {{ $widget->name }}</h4>
                 <div class="d-flex gap-2">
                     <a class="btn btn-outline-secondary" href="{{ route('widgets.edit', $widget) }}">Back to Widget</a>
@@ -280,7 +280,8 @@
             })
             .listen('.message.created', e => {
                 console.log('message.created', e);
-                onMsg(e.payload);
+                // support both shapes just in case:
+                onMsg(e.payload || e);
             });
 
         const sessionsList = document.getElementById('sessionsList');
@@ -300,7 +301,6 @@
 
 
         function onMsg(p) {
-
             // Prefer UUID for UI identity, but keep PK for routes
             const uuid = p.session_id || p.session_uuid || null;
             const pk = p.session_pk || p.chat_session_id || p.session_db_id || null;
@@ -319,6 +319,7 @@
             threads.get(sid).push({
                 role: p.role,
                 content: p.content,
+                attachments: p.attachments || [], // ✅ ADD THIS
                 ts
             });
 
@@ -334,7 +335,7 @@
             if (active !== sid) return;
 
             // Otherwise, it's the active thread: append only once.
-            appendBubble(p.role, p.content, ts);
+            appendBubble(p.role, p.content, ts, p.attachments || []); // ✅ PASS ATTACHMENTS
             autoscroll();
         }
 
@@ -371,13 +372,13 @@
                 sid));
             // render thread
             chatScroll.innerHTML = '';
-            (threads.get(sid) || []).forEach(m => appendBubble(m.role, m.content, m.ts));
+            (threads.get(sid) || []).forEach(m => appendBubble(m.role, m.content, m.ts, m.attachments ||
+        [])); // ✅ PASS ATTACHMENTS
             autoscroll(true);
         }
 
         // Bubbles
-        // Bubbles
-        function appendBubble(role, content, ts) {
+        function appendBubble(role, content, ts, attachments = []) {
             const r = (role || '').toLowerCase();
 
             const isOperator = r === 'operator';
@@ -391,8 +392,7 @@
             // Side: operators appear on the right (admin UI). Everyone else on left
             const sideClass = isOperator ? 'row row--me' : 'row';
 
-            // Bubble visuals — pick "in" for incoming (bot/visitor/system),
-            // and "out" for operator (your messages) — adjust if you prefer otherwise.
+            // Bubble visuals
             const bubClass = isSystem ?
                 'bubble bubble--in' :
                 isAssistant ?
@@ -416,10 +416,38 @@
                 isSystem ? r.toUpperCase() :
                 (r || 'Message');
 
+            // ✅ BUILD ATTACHMENTS HTML
+            let attachmentsHtml = '';
+            if (Array.isArray(attachments) && attachments.length > 0) {
+                attachments.forEach(att => {
+                    if (!att || !att.url) return;
+
+                    if ((att.mime || '').startsWith('image/')) {
+                        // Render image with click to open
+                        attachmentsHtml += `
+                    <a href="${escapeHtml(att.url)}" target="_blank" rel="noopener" style="display:block;margin-top:8px;">
+                        <img src="${escapeHtml(att.url)}" 
+                             alt="${escapeHtml(att.filename || 'attachment')}" 
+                             style="max-width:280px;border-radius:8px;display:block;cursor:pointer;" />
+                    </a>
+                `;
+                    } else {
+                        // Render file link
+                        attachmentsHtml += `
+                    <a href="${escapeHtml(att.url)}" target="_blank" rel="noopener" 
+                       style="display:block;margin-top:8px;color:#2563eb;text-decoration:underline;">
+                        📎 ${escapeHtml(att.filename || 'Download file')}
+                    </a>
+                `;
+                    }
+                });
+            }
+
             const html = `
     <div class="${sideClass}">
       <div class="${bubClass}">
-        ${escapeHtml(content || '')}
+        ${content ? escapeHtml(content) : ''}
+        ${attachmentsHtml}
         <span class="meta">${fmtTime(ts)} • ${escapeHtml(label)}</span>
       </div>
     </div>`;

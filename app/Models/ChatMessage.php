@@ -12,4 +12,10 @@ class ChatMessage extends Model
   {
     return $this->belongsTo(ChatSession::class);
   }
+
+  // app/Models/ChatMessage.php (add relation)
+  public function attachments()
+  {
+    return $this->hasMany(ChatAttachment::class);
+  }
 }

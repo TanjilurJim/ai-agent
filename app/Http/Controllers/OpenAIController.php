@@ -19,6 +19,9 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\ChatTranscriptMail;
 
+
+
+
 class OpenAIController extends Controller
 {
 
@@ -107,8 +110,12 @@ class OpenAIController extends Controller
 
     public function chat(Request $request, string $api_key)
     {
+        $hasFiles = $request->hasFile('images');
+
         $request->validate([
-            'message'    => ['required', 'string'],
+            'message'    => [$hasFiles ? 'nullable' : 'required', 'string', 'max:6000'],
+            'images'     => ['nullable', 'array', 'max:5'],  // <-- FIX: Accept array
+            'images.*'   => ['image', 'mimes:jpeg,png,webp,gif', 'max:4096'],
             'session_id' => ['required', 'uuid'],
         ]);
 
@@ -134,21 +141,22 @@ class OpenAIController extends Controller
         if (!$session) return response()->json(['reply' => 'Please start the chat first.'], 422);
 
         // ── NEW: pull user text early + pause guard ────────────────────────────────
-        $userText = $request->string('message');
+        $userText = trim((string)$request->input('message', ''));
+        if ($hasFiles && $userText === '') {
+            $userText = '[Attachment]';
+        }
+        // Bot paused? store message + attachments and exit
 
         if ($session->bot_paused_until && now()->lt($session->bot_paused_until)) {
-            // store user msg and broadcast
             $userMsg = $session->messages()->create([
                 'role'    => 'user',
                 'content' => $userText,
             ]);
-            event(new MessageCreated($userMsg));
+            $this->storePublicAttachments($request, $userMsg, $session->session_id);
+            event(new MessageCreated($userMsg->load('attachments')));
 
             $notice = "A human operator is replying — the bot is paused.";
-            $botMsg = $session->messages()->create([
-                'role'    => 'assistant',
-                'content' => $notice,
-            ]);
+            $botMsg = $session->messages()->create(['role' => 'assistant', 'content' => $notice]);
             event(new MessageCreated($botMsg));
 
             return response()->json(['reply' => $notice]);
@@ -229,7 +237,8 @@ class OpenAIController extends Controller
             'role'    => 'user',
             'content' => $userText,
         ]);
-        event(new MessageCreated($userMsg));
+        $this->storePublicAttachments($request, $userMsg, $session->session_id);
+        event(new MessageCreated($userMsg->load('attachments')));
 
         $botMsg = $session->messages()->create([
             'role'    => 'assistant',
@@ -240,6 +249,57 @@ class OpenAIController extends Controller
         return response()->json(['reply' => $reply]);
     }
 
+    private function storePublicAttachments(Request $request, \App\Models\ChatMessage $msg, string $sessionUuid): void
+{
+    if (!$request->hasFile('images')) return;
+
+    $files = (array) $request->file('images');
+    if (count($files) > 5) {
+        abort(422, 'Too many images (max 5).');
+    }
+
+    $baseDir = public_path('uploads/chat/' . $sessionUuid);
+    if (!is_dir($baseDir)) {
+        @mkdir($baseDir, 0775, true);
+    }
+
+    foreach ($files as $file) {
+        if (!$file->isValid()) continue;
+
+        // ✅ GET MIME TYPE AND DIMENSIONS BEFORE MOVING THE FILE
+        $mime = $file->getMimeType();
+        $ext  = strtolower($file->getClientOriginalExtension() ?: 'bin');
+        
+        // Try to capture image dimensions BEFORE moving
+        $w = $h = null;
+        if (str_starts_with((string)$mime, 'image/')) {
+            $tempPath = $file->getRealPath(); // Get temp path before moving
+            if ($info = @getimagesize($tempPath)) {
+                $w = $info[0] ?? null;
+                $h = $info[1] ?? null;
+            }
+        }
+
+        // Generate filename and move
+        $name = now()->format('YmdHis') . '_' . Str::random(6) . '.' . $ext;
+        $file->move($baseDir, $name);
+
+        // ✅ NOW the file is in the final location
+        $relative = 'uploads/chat/' . $sessionUuid . '/' . $name;
+        $absolute = $baseDir . '/' . $name;
+        $url      = asset($relative);
+
+        $msg->attachments()->create([
+            'disk'   => 'public-root',
+            'path'   => $relative,
+            'url'    => $url,
+            'mime'   => $mime,
+            'size'   => @filesize($absolute) ?: null,
+            'width'  => $w,
+            'height' => $h,
+        ]);
+    }
+}
 
 
     public function widget($api_key)

@@ -23,45 +23,7 @@
                     </a>
                 </li>
 
-                <li class="dropdown topbar-item">
-                    <a class="nav-link dropdown-toggle arrow-none nav-icon" data-bs-toggle="dropdown" href="#"
-                        role="button" aria-haspopup="false" aria-expanded="false" data-bs-offset="0,19">
-                        <i class="iconoir-bell"></i>
-                        <span class="alert-badge"></span>
-                    </a>
-                    <div class="dropdown-menu stop dropdown-menu-end dropdown-lg py-0">
-
-                        <h5 class="dropdown-item-text m-0 py-3 d-flex justify-content-between align-items-center">
-                            Notifications <a href="#" class="badge text-body-tertiary badge-pill">
-                                <i class="iconoir-plus-circle fs-4"></i>
-                            </a>
-                        </h5>
-                        <ul class="nav nav-tabs nav-tabs-custom nav-success nav-justified mb-1" role="tablist">
-                            <li class="nav-item" role="presentation">
-                                <a class="nav-link mx-0 active" data-bs-toggle="tab" href="#All" role="tab"
-                                    aria-selected="true">
-                                    All <span class="badge bg-primary-subtle text-primary badge-pill ms-1">24</span>
-                                </a>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <a class="nav-link mx-0" data-bs-toggle="tab" href="#Projects" role="tab"
-                                    aria-selected="false" tabindex="-1">
-                                    Projects
-                                </a>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <a class="nav-link mx-0" data-bs-toggle="tab" href="#Teams" role="tab"
-                                    aria-selected="false" tabindex="-1">
-                                    Team
-                                </a>
-                            </li>
-                        </ul>
-
-                        <a href="pages-notifications.html" class="dropdown-item text-center text-dark fs-13 py-2">
-                            View All <i class="fi-arrow-right"></i>
-                        </a>
-                    </div>
-                </li>
+              
 
                 @php
 

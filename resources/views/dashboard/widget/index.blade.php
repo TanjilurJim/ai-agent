@@ -3,8 +3,8 @@
     <div class="page-content">
         <div class="container-fluid">
 
-            <div class="d-flex justify-content-between align-items-center mb-3 p-2">
-                <h4 class="page-title mb-0">Your Widgets</h4>
+            <div class="page-title-box d-md-flex justify-content-md-between align-items-center">
+                <h4 class="page-title">Your Widgets</h4>
                 <a href="{{ route('widgets.create') }}" class="btn btn-primary">
                     <i class="las la-plus me-1"></i> New Widget
                 </a>
@@ -14,7 +14,7 @@
                 <div class="alert alert-success alert-dismissible fade show">
                     {{ session('success') }}
                     <button class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
+                </div>  
             @endif
 
             <div class="row g-3">
