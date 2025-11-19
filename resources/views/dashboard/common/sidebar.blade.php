@@ -49,7 +49,7 @@
                     <li class="nav-item">
                         <a class="nav-link" href="/dashboard/subscribers">
                             <i class="fa-solid fa-crown menu-icon"></i>
-                            <span>Subscriber</span>
+                            <span>Subscriber & Widgets</span>
                         </a>
                     </li>
                     @endif    

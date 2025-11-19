@@ -6,7 +6,7 @@
             <div class="row">
                 <div class="col-sm-12">
                     <div class="page-title-box d-md-flex justify-content-md-between align-items-center">
-                        <h4 class="page-title">Subscriber List</h4>
+                        <h4 class="page-title">Subscriber List & Widgets</h4>
                         <div class="">
                             <ol class="breadcrumb mb-0">
                                 <li class="breadcrumb-item"><a href="#">Dashboard</a></li>
@@ -77,7 +77,8 @@
                                             <tr>
                                                 <td>{{ $loop->iteration }}</td>
 
-                                                <td class="text-break">{{ $subscriber->user->name }}</td>
+                                                <td class="text-break">{{ $subscriber->user?->name ?? '—' }}</td>
+
 
                                                 {{-- Widget column (linked to edit) --}}
                                                 <td class="text-break">
@@ -105,6 +106,14 @@
                                                 {{-- Actions --}}
                                                 <td class="text-center text-md-start text-nowrap align-middle">
                                                     <div class="d-inline-flex gap-2 align-items-center">
+                                                        <!-- View button -->
+                                                        <a href="{{ route('subscribers.show', $subscriber->id) }}"
+                                                            class="btn btn-primary btn-sm">
+                                                            <i class="fa-regular fa-eye me-1"></i>
+                                                            <span class="d-none d-sm-inline">View</span>
+                                                        </a>
+
+                                                        <!-- Delete (keeps existing JS confirm behavior) -->
                                                         <form action="{{ route('subscribers.destroy', $subscriber->id) }}"
                                                             method="POST" class="m-0">
                                                             @csrf @method('DELETE')
@@ -114,6 +123,7 @@
                                                             </button>
                                                         </form>
 
+                                                        <!-- Edit modal trigger -->
                                                         <button type="button" class="btn btn-warning btn-sm edit-btn"
                                                             data-bs-toggle="modal" data-bs-target="#editSubscriberModal"
                                                             data-id="{{ $subscriber->id }}"
@@ -122,6 +132,7 @@
                                                             <span class="d-none d-sm-inline">Edit</span>
                                                         </button>
                                                     </div>
+
                                                 </td>
                                             </tr>
                                         @empty

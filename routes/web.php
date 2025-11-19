@@ -10,6 +10,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TrainController;
 use App\Http\Controllers\WidgetController;
 use App\Http\Controllers\WidgetLiveController;
+
 use App\Models\Widget;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Route;
@@ -71,6 +72,13 @@ Route::middleware('auth')->group(function () {
 
     // Subscribers / API docs
     Route::get('/dashboard/subscribers', [DashboardController::class, 'subscriber'])->name('dashboard.subscriber');
+
+    Route::get('/dashboard/subscribers/{id}', [DashboardController::class, 'subscriber_show'])
+    ->name('subscribers.show');
+
+    Route::get('/dashboard/users/{id}', [DashboardController::class, 'user_show'])
+    ->name('user.show');
+
     Route::post('/dashboard/subscribers', [DashboardController::class, 'subscriber_store'])->name('dashboard.subscriber_store');
     Route::delete('/dashboard/subscribers/{id}', [DashboardController::class, 'subscriber_destroy'])->name('subscribers.destroy');
     Route::get('/dashboard/api-docs', [APIController::class, 'api'])->name('dashboard.api');

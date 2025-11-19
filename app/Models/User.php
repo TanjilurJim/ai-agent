@@ -47,4 +47,14 @@ class User extends Authenticatable
     {
         return strtolower($this->role ?? '') === 'admin';
     }
+
+    public function widgets()
+    {
+        return $this->hasMany(\App\Models\Widget::class);
+    }
+
+    public function subscriptions()
+    {
+        return $this->hasMany(\App\Models\Subscription::class);
+    }
 }

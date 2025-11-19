@@ -42,12 +42,21 @@
                                             <td>{{ $item->email }}</td>
                                             <td>{{ $item->role ?? 'N/A' }}</td>
                                             <td>
-                                                <form action="{{ route('user.destroy', $item->id) }}" method="POST" class="delete-form" data-id="{{ $item->id }}">
+                                                <a href="{{ route('user.show', $item->id) }}"
+                                                    class="btn btn-primary btn-sm me-1">
+                                                    <i class="fa-regular fa-eye me-1"></i>
+                                                    <span class="d-none d-sm-inline">View</span>
+                                                </a>
+
+                                                <form action="{{ route('user.destroy', $item->id) }}" method="POST"
+                                                    class="delete-form d-inline-block" data-id="{{ $item->id }}">
                                                     @csrf
                                                     @method('DELETE')
-                                                    <button type="button" class="btn btn-danger btn-sm delete-btn">Delete</button>
-                                                </form>                                                
+                                                    <button type="button"
+                                                        class="btn btn-danger btn-sm delete-btn">Delete</button>
+                                                </form>
                                             </td>
+
                                         </tr>
                                     @endforeach
                                 </tbody>
@@ -60,15 +69,15 @@
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('DOMContentLoaded', function() {
             // Select all delete buttons
             const deleteButtons = document.querySelectorAll('.delete-btn');
-    
+
             deleteButtons.forEach(button => {
-                button.addEventListener('click', function (event) {
+                button.addEventListener('click', function(event) {
                     const form = this.closest('form');
                     const userId = form.dataset.id;
-    
+
                     Swal.fire({
                         title: 'Are you sure?',
                         text: "You won't be able to revert this!",
@@ -86,6 +95,4 @@
             });
         });
     </script>
-
-
 @endsection
