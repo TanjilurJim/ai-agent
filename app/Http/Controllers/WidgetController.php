@@ -6,7 +6,7 @@ use App\Models\Subscription;
 use App\Models\Widget;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-
+use App\Models\User;
 class WidgetController extends Controller
 {
     public function index()
@@ -17,6 +17,20 @@ class WidgetController extends Controller
 
     public function create()
     {
+        $user = auth()->user();
+
+        // Non-admins are limited by their plan
+        if (! $user->isAdmin() && ! $user->canCreateMoreWidgets()) {
+            $limit = $user->widgetLimit();
+
+            return redirect()
+                ->route('widgets.index')
+                ->with(
+                    'error',
+                    "Your current plan allows only {$limit} widget(s). Please upgrade your plan to create more widgets."
+                );
+        }
+
         $widget = new Widget();
         return view('dashboard.widget.edit', compact('widget'));
     }
@@ -44,6 +58,20 @@ class WidgetController extends Controller
 
     public function store(Request $request)
     {
+        $user = auth()->user();
+
+        // Guard: respect plan widget limit for non-admins
+        if (! $user->isAdmin() && ! $user->canCreateMoreWidgets()) {
+            $limit = $user->widgetLimit();
+
+            return redirect()
+                ->route('widgets.index')
+                ->with(
+                    'error',
+                    "Your current plan allows only {$limit} widget(s). Please upgrade your plan to create more widgets."
+                );
+        }
+
         $data = $request->validate([
             'name'           => 'required|string|max:255',
             'widgetName'     => 'nullable|string|max:255',
@@ -56,7 +84,7 @@ class WidgetController extends Controller
         ]);
 
         $widget = new \App\Models\Widget($data);
-        $widget->user_id = auth()->id();
+        $widget->user_id = $user->id;
 
         if ($request->hasFile('avatar')) {
             $file = $request->file('avatar');
@@ -75,11 +103,13 @@ class WidgetController extends Controller
 
         \App\Models\Subscription::firstOrCreate(
             ['api_key' => $widget->api_key],
-            ['status' => 'Pending', 'token' => 10, 'user_id' => auth()->id()]
+            ['status' => 'Pending', 'token' => 10, 'user_id' => $user->id]
         );
 
         return redirect()->route('widgets.edit', $widget)->with('success', 'Widget created successfully.');
     }
+
+
 
 
 
@@ -91,41 +121,41 @@ class WidgetController extends Controller
     }
 
     public function update(Request $request, \App\Models\Widget $widget)
-{
-    abort_unless($widget->user_id === auth()->id(), 403);
+    {
+        abort_unless($widget->user_id === auth()->id(), 403);
 
-    $data = $request->validate([
-        'name'           => 'required|string|max:255',
-        'widgetName'     => 'nullable|string|max:255',
-        'welcomeMessage' => 'required|string|max:255',
-        'color'          => 'required|string|max:20',
-        'avatar'         => 'nullable|image|max:2048',
-        'is_active'      => 'nullable|boolean',
-        'personality_ids'=> 'array',
-        'personality_ids.*' => 'integer|exists:personalities,id',
-        'personality_orders' => 'array',
-    ]);
+        $data = $request->validate([
+            'name'           => 'required|string|max:255',
+            'widgetName'     => 'nullable|string|max:255',
+            'welcomeMessage' => 'required|string|max:255',
+            'color'          => 'required|string|max:20',
+            'avatar'         => 'nullable|image|max:2048',
+            'is_active'      => 'nullable|boolean',
+            'personality_ids' => 'array',
+            'personality_ids.*' => 'integer|exists:personalities,id',
+            'personality_orders' => 'array',
+        ]);
 
-    $widget->fill($data);
+        $widget->fill($data);
 
-    if ($request->hasFile('avatar')) {
-        $file = $request->file('avatar');
-        $filename = time().'_'.\Illuminate\Support\Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME))
-                    .'.'.$file->getClientOriginalExtension();
-        $file->move(public_path('uploads'), $filename);
-        $widget->avatar = 'uploads/'.$filename;
+        if ($request->hasFile('avatar')) {
+            $file = $request->file('avatar');
+            $filename = time() . '_' . \Illuminate\Support\Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME))
+                . '.' . $file->getClientOriginalExtension();
+            $file->move(public_path('uploads'), $filename);
+            $widget->avatar = 'uploads/' . $filename;
+        }
+
+        $widget->save();
+
+        $this->syncPersonalities(
+            $widget,
+            $data['personality_ids'] ?? [],
+            $data['personality_orders'] ?? []
+        );
+
+        return back()->with('success', 'Widget updated successfully.');
     }
-
-    $widget->save();
-
-    $this->syncPersonalities(
-        $widget,
-        $data['personality_ids'] ?? [],
-        $data['personality_orders'] ?? []
-    );
-
-    return back()->with('success', 'Widget updated successfully.');
-}
 
 
     public function toggle(Widget $widget)

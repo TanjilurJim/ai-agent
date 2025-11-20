@@ -6,7 +6,8 @@ use App\Models\BotContent;
 use App\Models\Personality;
 use App\Models\PersonalityItem;
 use Illuminate\Http\Request;
-
+use App\Models\UserDailyUsage;
+use App\Models\User;
 class PersonalityController extends Controller
 {
     /** Big textarea page (Describe About Bot) stays as-is */
@@ -19,24 +20,49 @@ class PersonalityController extends Controller
     /** GET /dashboard/train-bot/add-page  (Create Personality) */
     public function create()
     {
-        // Reuse your existing "page" create blade for now; you'll rename the labels in the view.
-        // Provide an empty $personality so the form can bind.
+        $user = auth()->user();
+
+        if (! $user->isAdmin() && ! $user->canCreateMorePersonalities()) {
+            $limit = $user->personalityLimit();
+
+            return redirect()
+                ->back()
+                ->with(
+                    'error',
+                    "Your current plan allows only {$limit} personality/ies. Please upgrade your plan to create more personalities."
+                );
+        }
+
+        // existing code
         $personality = new Personality();
         $personality->setRelation('items', collect()); // empty collection for the form
-        return view('dashboard.page', compact('personality')); // temporary: using your current blade
+        return view('dashboard.page', compact('personality'));
     }
 
     /** POST /dashboard/train-bot/add-page  (Store Personality + items) */
     public function store(Request $request)
     {
+        $user = auth()->user();
+
+        if (! $user->isAdmin() && ! $user->canCreateMorePersonalities()) {
+            $limit = $user->personalityLimit();
+
+            return redirect()
+                ->back()
+                ->with(
+                    'error',
+                    "Your current plan allows only {$limit} personality/ies. Please upgrade your plan to create more personalities."
+                );
+        }
+
         // For now, accept one title+content (your current form);
         // but also allow multiple items posted as arrays: items[0][heading], items[0][body], ...
         $data = $request->validate([
-            'title' => ['required','string','max:255'],          // Personality name
-            'content' => ['nullable','string','max:65535'],      // Optional first item body
+            'title' => ['required', 'string', 'max:255'],          // Personality name
+            'content' => ['nullable', 'string', 'max:65535'],      // Optional first item body
             'items' => ['array'],                                // optional multi-items
-            'items.*.heading' => ['nullable','string','max:255'],
-            'items.*.body' => ['required','string','max:65535'],
+            'items.*.heading' => ['nullable', 'string', 'max:255'],
+            'items.*.body' => ['required', 'string', 'max:65535'],
         ]);
 
         $personality = new Personality();
@@ -83,7 +109,7 @@ class PersonalityController extends Controller
 
         // Temporarily reuse your page_list blade (it prints $pages).
         // Map the variable name so the existing blade works without changes.
-        $pages = $personalities->map(function($p){
+        $pages = $personalities->map(function ($p) {
             return (object)[
                 'id' => $p->id,
                 'title' => $p->name . ($p->items_count ? " ({$p->items_count})" : ''),
@@ -98,7 +124,9 @@ class PersonalityController extends Controller
     {
         $personality = Personality::where('id', $id)
             ->where('user_id', auth()->id())
-            ->with(['items' => function($q){ $q->orderBy('order'); }])
+            ->with(['items' => function ($q) {
+                $q->orderBy('order');
+            }])
             ->firstOrFail();
 
         // Temporarily reuse page_edit blade (expects $page->title and $page->content)
@@ -121,16 +149,16 @@ class PersonalityController extends Controller
             ->firstOrFail();
 
         $data = $request->validate([
-            'title' => ['required','string','max:255'],          // new name
-            'content' => ['nullable','string','max:65535'],      // overwrite first item's body
+            'title' => ['required', 'string', 'max:255'],          // new name
+            'content' => ['nullable', 'string', 'max:65535'],      // overwrite first item's body
             // optional arrays for full edit UI:
             'items' => ['array'],
-            'items.*.id' => ['nullable','integer','exists:personality_items,id'],
-            'items.*.heading' => ['nullable','string','max:255'],
-            'items.*.body' => ['required','string','max:65535'],
-            'items.*.order' => ['nullable','integer','min:1'],
+            'items.*.id' => ['nullable', 'integer', 'exists:personality_items,id'],
+            'items.*.heading' => ['nullable', 'string', 'max:255'],
+            'items.*.body' => ['required', 'string', 'max:65535'],
+            'items.*.order' => ['nullable', 'integer', 'min:1'],
             'delete_item_ids' => ['array'],
-            'delete_item_ids.*' => ['integer','exists:personality_items,id'],
+            'delete_item_ids.*' => ['integer', 'exists:personality_items,id'],
         ]);
 
         $personality->name = $data['title'];

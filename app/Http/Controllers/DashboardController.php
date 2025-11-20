@@ -11,6 +11,7 @@ use App\Models\Train;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use App\Models\UserDailyUsage;
 
 class DashboardController extends Controller
 {
@@ -19,8 +20,32 @@ class DashboardController extends Controller
         $user = auth()->user();
         // If NOT admin → show user dashboard
         if (! $user->isAdmin()) {
-            return view('dashboard.user-dashboard', compact('user'));
+            $plan = $user->plan; // may be null if something's off, we’ll guard in blade
+
+            $widgetCount       = $user->widgets()->count();
+            $widgetLimit       = $user->widgetLimit();
+
+            $personalityCount  = $user->personalities()->count();
+            $personalityLimit  = $user->personalityLimit();
+
+            $dailyPromptLimit  = $user->dailyPromptLimit();
+            $today             = now()->toDateString();
+            $todayUsage        = UserDailyUsage::where('user_id', $user->id)
+                ->where('date', $today)
+                ->value('prompt_count') ?? 0;
+
+            return view('dashboard.user-dashboard', compact(
+                'user',
+                'plan',
+                'widgetCount',
+                'widgetLimit',
+                'personalityCount',
+                'personalityLimit',
+                'dailyPromptLimit',
+                'todayUsage'
+            ));
         }
+
         // Total users
         $totalUsers = User::count();
 

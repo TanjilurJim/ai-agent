@@ -10,7 +10,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TrainController;
 use App\Http\Controllers\WidgetController;
 use App\Http\Controllers\WidgetLiveController;
-
+use App\Http\Controllers\PlansController;
 use App\Models\Widget;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Route;
@@ -74,10 +74,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard/subscribers', [DashboardController::class, 'subscriber'])->name('dashboard.subscriber');
 
     Route::get('/dashboard/subscribers/{id}', [DashboardController::class, 'subscriber_show'])
-    ->name('subscribers.show');
+        ->name('subscribers.show');
 
     Route::get('/dashboard/users/{id}', [DashboardController::class, 'user_show'])
-    ->name('user.show');
+        ->name('user.show');
 
     Route::post('/dashboard/subscribers', [DashboardController::class, 'subscriber_store'])->name('dashboard.subscriber_store');
     Route::delete('/dashboard/subscribers/{id}', [DashboardController::class, 'subscriber_destroy'])->name('subscribers.destroy');
@@ -102,6 +102,15 @@ Route::middleware('auth')->group(function () {
     Route::prefix('users')->group(function () {
         Route::get('/{id}/edit', [DashboardController::class, 'edit'])->name('user.edit');
         Route::delete('/{id}', [DashboardController::class, 'destroy'])->name('user.destroy');
+    });
+
+    Route::middleware(['auth'])->group(function () {
+        // User-facing plans page
+        Route::get('/plans', [PlansController::class, 'index'])->name('plans.index');
+
+        // Admin plan management
+        Route::get('/dashboard/plans', [PlansController::class, 'adminIndex'])->name('dashboard.plans.index');
+        Route::put('/dashboard/plans/{plan}', [PlansController::class, 'update'])->name('dashboard.plans.update');
     });
 
     // Debug / test

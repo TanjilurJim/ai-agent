@@ -8,6 +8,10 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
+use App\Models\Plan;
+use App\Models\Personality;
+use App\Models\UserDailyUsage;
+
 class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
@@ -21,6 +25,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'plan_id',
     ];
 
     /**
@@ -56,5 +61,69 @@ class User extends Authenticatable
     public function subscriptions()
     {
         return $this->hasMany(\App\Models\Subscription::class);
+    }
+
+    public function plan()
+    {
+        return $this->belongsTo(Plan::class);
+    }
+
+    public function personalities()
+    {
+        return $this->hasMany(Personality::class);
+    }
+    protected function effectivePlan(): ?Plan
+    {
+        // In case plan_id is null somehow, fall back to 'free'
+        if ($this->plan) {
+            return $this->plan;
+        }
+
+        return Plan::where('name', 'free')->first();
+    }
+
+    public function widgetLimit(): int
+    {
+        if ($this->isAdmin()) {
+            return PHP_INT_MAX; // effectively unlimited
+        }
+
+        return optional($this->effectivePlan())->widget_limit ?? 0;
+    }
+
+    public function personalityLimit(): int
+    {
+        if ($this->isAdmin()) {
+            return PHP_INT_MAX;
+        }
+
+        return optional($this->effectivePlan())->personality_limit ?? 0;
+    }
+
+    public function dailyPromptLimit(): int
+    {
+        if ($this->isAdmin()) {
+            return PHP_INT_MAX;
+        }
+
+        return optional($this->effectivePlan())->daily_prompt_limit ?? 0;
+    }
+
+    public function canCreateMoreWidgets(): bool
+    {
+        if ($this->isAdmin()) {
+            return true;
+        }
+
+        return $this->widgets()->count() < $this->widgetLimit();
+    }
+
+    public function canCreateMorePersonalities(): bool
+    {
+        if ($this->isAdmin()) {
+            return true;
+        }
+
+        return $this->personalities()->count() < $this->personalityLimit();
     }
 }

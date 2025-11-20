@@ -1,20 +1,48 @@
 @extends('dashboard.layout')
 @section('content')
+    @php
+        $user = auth()->user();
+        $widgetCount = $user->widgets()->count();
+        $planLimit = $user->widgetLimit(); // from User model helper
+        $canCreateMore = $user->isAdmin() || $widgetCount < $planLimit;
+    @endphp
+
     <div class="page-content">
         <div class="container-fluid">
 
             <div class="page-title-box d-md-flex justify-content-md-between align-items-center">
                 <h4 class="page-title">Your Widgets</h4>
-                <a href="{{ route('widgets.create') }}" class="btn btn-primary">
-                    <i class="las la-plus me-1"></i> New Widget
-                </a>
+
+                @if ($canCreateMore)
+                    <a href="{{ route('widgets.create') }}" class="btn btn-primary">
+                        <i class="las la-plus me-1"></i> New Widget
+                    </a>
+                @else
+                    <button class="btn btn-secondary" type="button" disabled>
+                        <i class="las la-lock me-1"></i> Limit reached
+                    </button>
+                @endif
+
+
             </div>
+            @if (!$user->isAdmin())
+                <div class="alert alert-{{ $canCreateMore ? 'info' : 'warning' }} mt-2">
+                    You are using <strong>{{ $widgetCount }} / {{ $planLimit }}</strong> widgets allowed on your plan.
+                    @unless ($canCreateMore)
+                        <br>
+                        Please upgrade your plan to create more widgets.
+                    @endunless
+                    {{-- Later you can link to a pricing/upgrade page --}}
+                    {{-- <a href="{{ route('billing.upgrade') }}">Upgrade now</a> --}}
+                </div>
+            @endif
+
 
             @if (session('success'))
                 <div class="alert alert-success alert-dismissible fade show">
                     {{ session('success') }}
                     <button class="btn-close" data-bs-dismiss="alert"></button>
-                </div>  
+                </div>
             @endif
 
             <div class="row g-3">

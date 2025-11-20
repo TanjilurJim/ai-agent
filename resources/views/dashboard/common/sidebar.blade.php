@@ -2,7 +2,7 @@
     <div class="brand">
         <a href="/dashboard" class="logo">
             <span>
-                <img src="{{asset('assets/images/mini.svg')}}" alt="logo-small" class="logo-sm">
+                <img src="{{ asset('assets/images/mini.svg') }}" alt="logo-small" class="logo-sm">
             </span>
             <span class="">
                 <img src="{{ asset('assets/images/logo.svg') }}" alt="logo-large" class="logo-lg logo-light">
@@ -20,7 +20,7 @@
                     </li>
                     @if (auth()->user()->role == 'admin')
                         <li class="nav-item">
-                            <a class="nav-link" href="{{route('dashboard')}}">
+                            <a class="nav-link" href="{{ route('dashboard') }}">
                                 <i class="iconoir-report-columns menu-icon"></i>
                                 <span>Dashboard</span>
                                 <span class="badge text-bg-info ms-auto">New</span>
@@ -28,31 +28,49 @@
                         </li>
                     @endif
                     <li class="nav-item">
-                        <a class="nav-link" href="{{route('widgets.index')}}">
+                        <a class="nav-link" href="{{ route('widgets.index') }}">
                             <i class="fas fa-robot menu-icon"></i>
                             <span>Widget</span>
                         </a>
                     </li>
+                    @if (auth()->user()->role != 'admin')
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ route('plans.index') }}">
+                            <i class="fa-solid fa-layer-group menu-icon"></i>
+                            <span>Plans</span>
+                        </a>
+                    </li>
+                    @endif
+
                     <li class="nav-item">
                         <a class="nav-link" href="/dashboard/train-bot">
                             <i class="iconoir-credit-cards menu-icon"></i>
                             <span>Train Bot</span>
                         </a>
 
-                    @if (auth()->user()->role == 'admin')                        
+                        @if (auth()->user()->role == 'admin')
                     <li class="nav-item">
                         <a class="nav-link" href="/dashboard/users">
                             <i class="fa-solid fa-user menu-icon"></i>
                             <span>Users</span>
                         </a>
                     </li>
+                    @if (auth()->user()->role == 'admin')
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ route('dashboard.plans.index') }}">
+                                <i class="fa-solid fa-sliders-h menu-icon"></i>
+                                <span>Manage Plans</span>
+                            </a>
+                        </li>
+                    @endif
+
                     <li class="nav-item">
                         <a class="nav-link" href="/dashboard/subscribers">
                             <i class="fa-solid fa-crown menu-icon"></i>
                             <span>Subscriber & Widgets</span>
                         </a>
                     </li>
-                    @endif    
+                    @endif
 
                     <li class="nav-item">
                         <a class="nav-link" href="/dashboard/api-docs">

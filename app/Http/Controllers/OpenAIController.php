@@ -16,6 +16,8 @@ use App\Events\MessageCreated;
 use App\Models\Lead;
 use App\Models\ChatSession;
 use Illuminate\Support\Str;
+use App\Models\UserDailyUsage;
+
 use Illuminate\Support\Facades\Mail;
 use App\Mail\ChatTranscriptMail;
 
@@ -121,6 +123,7 @@ class OpenAIController extends Controller
 
         $widget = Widget::where('api_key', $api_key)
             ->with([
+                'user',
                 'personalities' => fn($q) => $q->orderBy('personality_widget.order'),
                 'personalities.items' => fn($q) => $q->orderBy('order'),
             ])->first();
@@ -139,6 +142,34 @@ class OpenAIController extends Controller
         ])->first();
 
         if (!$session) return response()->json(['reply' => 'Please start the chat first.'], 422);
+
+        // 🔽 ADD THIS BLOCK HERE 🔽
+        $owner = $widget->user; // the user who owns this widget
+
+        if ($owner && ! $owner->isAdmin()) {
+            $limit = $owner->dailyPromptLimit(); // from User helper
+
+            if ($limit > 0) {
+                $today = now()->toDateString();
+
+                $usage = UserDailyUsage::firstOrCreate(
+                    [
+                        'user_id' => $owner->id,
+                        'date'    => $today,
+                    ],
+                    [
+                        'prompt_count' => 0,
+                    ]
+                );
+
+                if ($usage->prompt_count >= $limit) {
+                    return response()->json([
+                        'reply' => 'This widget has reached the daily message limit for the current plan. Please try again tomorrow or upgrade the plan.',
+                    ], 429);
+                }
+            }
+        }
+        // 🔼 END NEW BLOCK 🔼
 
         // ── NEW: pull user text early + pause guard ────────────────────────────────
         $userText = trim((string)$request->input('message', ''));
@@ -244,62 +275,71 @@ class OpenAIController extends Controller
             'role'    => 'assistant',
             'content' => $reply,
         ]);
+
         event(new MessageCreated($botMsg));
+
+        if (isset($owner) && $owner && ! $owner->isAdmin()) {
+            $today = now()->toDateString();
+
+            UserDailyUsage::where('user_id', $owner->id)
+                ->where('date', $today)
+                ->increment('prompt_count');
+        }
 
         return response()->json(['reply' => $reply]);
     }
 
     private function storePublicAttachments(Request $request, \App\Models\ChatMessage $msg, string $sessionUuid): void
-{
-    if (!$request->hasFile('images')) return;
+    {
+        if (!$request->hasFile('images')) return;
 
-    $files = (array) $request->file('images');
-    if (count($files) > 5) {
-        abort(422, 'Too many images (max 5).');
-    }
-
-    $baseDir = public_path('uploads/chat/' . $sessionUuid);
-    if (!is_dir($baseDir)) {
-        @mkdir($baseDir, 0775, true);
-    }
-
-    foreach ($files as $file) {
-        if (!$file->isValid()) continue;
-
-        // ✅ GET MIME TYPE AND DIMENSIONS BEFORE MOVING THE FILE
-        $mime = $file->getMimeType();
-        $ext  = strtolower($file->getClientOriginalExtension() ?: 'bin');
-        
-        // Try to capture image dimensions BEFORE moving
-        $w = $h = null;
-        if (str_starts_with((string)$mime, 'image/')) {
-            $tempPath = $file->getRealPath(); // Get temp path before moving
-            if ($info = @getimagesize($tempPath)) {
-                $w = $info[0] ?? null;
-                $h = $info[1] ?? null;
-            }
+        $files = (array) $request->file('images');
+        if (count($files) > 5) {
+            abort(422, 'Too many images (max 5).');
         }
 
-        // Generate filename and move
-        $name = now()->format('YmdHis') . '_' . Str::random(6) . '.' . $ext;
-        $file->move($baseDir, $name);
+        $baseDir = public_path('uploads/chat/' . $sessionUuid);
+        if (!is_dir($baseDir)) {
+            @mkdir($baseDir, 0775, true);
+        }
 
-        // ✅ NOW the file is in the final location
-        $relative = 'uploads/chat/' . $sessionUuid . '/' . $name;
-        $absolute = $baseDir . '/' . $name;
-        $url      = asset($relative);
+        foreach ($files as $file) {
+            if (!$file->isValid()) continue;
 
-        $msg->attachments()->create([
-            'disk'   => 'public-root',
-            'path'   => $relative,
-            'url'    => $url,
-            'mime'   => $mime,
-            'size'   => @filesize($absolute) ?: null,
-            'width'  => $w,
-            'height' => $h,
-        ]);
+            // ✅ GET MIME TYPE AND DIMENSIONS BEFORE MOVING THE FILE
+            $mime = $file->getMimeType();
+            $ext  = strtolower($file->getClientOriginalExtension() ?: 'bin');
+
+            // Try to capture image dimensions BEFORE moving
+            $w = $h = null;
+            if (str_starts_with((string)$mime, 'image/')) {
+                $tempPath = $file->getRealPath(); // Get temp path before moving
+                if ($info = @getimagesize($tempPath)) {
+                    $w = $info[0] ?? null;
+                    $h = $info[1] ?? null;
+                }
+            }
+
+            // Generate filename and move
+            $name = now()->format('YmdHis') . '_' . Str::random(6) . '.' . $ext;
+            $file->move($baseDir, $name);
+
+            // ✅ NOW the file is in the final location
+            $relative = 'uploads/chat/' . $sessionUuid . '/' . $name;
+            $absolute = $baseDir . '/' . $name;
+            $url      = asset($relative);
+
+            $msg->attachments()->create([
+                'disk'   => 'public-root',
+                'path'   => $relative,
+                'url'    => $url,
+                'mime'   => $mime,
+                'size'   => @filesize($absolute) ?: null,
+                'width'  => $w,
+                'height' => $h,
+            ]);
+        }
     }
-}
 
 
     public function widget($api_key)
