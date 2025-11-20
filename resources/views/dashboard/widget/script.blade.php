@@ -4,12 +4,16 @@
 <script>
     const $ = (id) => document.getElementById(id);
 
-    // === Avatar preview (unchanged) ===
+    // === Avatar preview (FIXED: prevent double upload) ===
     const avatarInput = $('avatar');
-    if (avatarInput) {
+    const avatarPreview = $('avatar_preview');
+    
+    if (avatarInput && avatarPreview) {
+        // Handle file selection
         avatarInput.addEventListener('change', (e) => {
             const file = e.target.files?.[0];
             if (!file) return;
+            
             const reader = new FileReader();
             reader.onload = (ev) => {
                 const src = ev.target?.result;
@@ -18,8 +22,14 @@
             };
             reader.readAsDataURL(file);
         });
+        
+        // Handle click on preview image (trigger file input only once)
+        avatarPreview.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            avatarInput.click();
+        });
     }
-    if ($('avatar_preview')) $('avatar_preview').addEventListener('click', () => avatarInput?.click());
 
     // === Live fields (unchanged) ===
     const nameInput = $('name');
@@ -47,7 +57,7 @@
     // === Chat preview with session ===
     const apiKey = @json($widget->api_key ?? '');
     const inputEl = $('chatInput');
-    const sendBtn = $('send-button'); // FIXED id
+    const sendBtn = $('send-button');
     const leadGate = $('leadGate');
     const leadStartBtn = $('leadStartBtn');
 
@@ -101,7 +111,7 @@
 
     // If no apiKey yet (create form), keep chat disabled
     setChatEnabled(!!apiKey);
-    showLead(!!apiKey && !sessionId); // gate only when apiKey exists but session doesn't
+    showLead(!!apiKey && !sessionId);
 
     // Start (create session via API)
     leadStartBtn?.addEventListener('click', async () => {
@@ -177,7 +187,7 @@
             const data = await res.json();
             return {
                 reply: data.reply || "Sorry, something went wrong.",
-                role: (data.role || 'bot').toLowerCase() // normalize role
+                role: (data.role || 'bot').toLowerCase()
             };
         } catch (err) {
             console.error("chat error:", err);
@@ -188,8 +198,6 @@
         }
     }
 
-
-
     // Expose sendMessage for the preview button + Enter
     window.sendMessage ??= async function(event) {
         if (event && event.type === "keypress" && event.key !== "Enter") return;
@@ -198,7 +206,6 @@
             return;
         }
 
-        // if gating and no session yet, show form
         if (!sessionId) {
             showLead(true);
             return;
@@ -236,12 +243,11 @@
         const botEl = document.createElement("div");
 
         if (role === 'operator' || role === 'assistant' || role === 'staff') {
-            botEl.className = "message bot-message"; // same style as before, looks like staff
+            botEl.className = "message bot-message";
         } else {
-            botEl.className = "message bot-message"; // could use different style if needed
+            botEl.className = "message bot-message";
         }
 
-        // botEl.className = "message bot-message";
         botEl.textContent = reply;
         messageContainer.appendChild(botEl);
         botEl.scrollIntoView({
@@ -250,7 +256,7 @@
         });
     };
 
-    // Also wire the click on the button
+    // Wire the click on the button
     sendBtn?.addEventListener('click', () => window.sendMessage());
 </script>
 <script>
@@ -423,8 +429,6 @@
         toggleMenu(false);
     });
 
-
-    // === Widget minimize / restore ===
     // === Widget minimize / restore ===
     const chatWidget = document.getElementById('chat-widget');
     const chatCloseBtn = document.getElementById('chatCloseBtn');

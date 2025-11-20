@@ -102,7 +102,20 @@ Route::middleware('auth')->group(function () {
     Route::prefix('users')->group(function () {
         Route::get('/{id}/edit', [DashboardController::class, 'edit'])->name('user.edit');
         Route::delete('/{id}', [DashboardController::class, 'destroy'])->name('user.destroy');
+        Route::put('/{id}/plan', [DashboardController::class, 'updateUserPlan'])->name('user.updatePlan');
     });
+
+    //subscription status change from user view
+
+    Route::put('/dashboard/subscriptions/{subscription}/status', [DashboardController::class, 'updateSubscriptionStatus'])
+        ->name('subscription.updateStatus');
+
+    Route::put('/dashboard/subscriptions/{subscription}/reset-token', [DashboardController::class, 'resetSubscriptionToken'])
+        ->name('subscription.resetToken');
+
+    Route::put('/dashboard/subscriptions/{subscription}/regenerate-key', [DashboardController::class, 'regenerateApiKey'])
+        ->name('subscription.regenerateApiKey');
+
 
     Route::middleware(['auth'])->group(function () {
         // User-facing plans page

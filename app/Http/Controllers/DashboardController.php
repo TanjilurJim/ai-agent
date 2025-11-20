@@ -12,6 +12,8 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use App\Models\UserDailyUsage;
+use App\Models\Plan;
+
 
 class DashboardController extends Controller
 {
@@ -218,34 +220,108 @@ class DashboardController extends Controller
 
 
 
-    public function user()
+    public function user(Request $request)
     {
-        $user = User::all();
-        return view('dashboard.user', compact('user'));
+        $admin = auth()->user();
+        abort_unless($admin && $admin->isAdmin(), 403);
+
+        $plans = Plan::orderBy('id')->get();
+
+        $query = User::with('plan')->orderByDesc('created_at');
+
+        // Filters
+        $search = $request->string('search')->trim();
+        $planId = $request->input('plan_id');
+        $role   = $request->input('role');
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%')
+                    ->orWhere('email', 'like', '%' . $search . '%');
+            });
+        }
+
+        if ($planId && $planId !== 'all') {
+            $query->where('plan_id', $planId);
+        }
+
+        if ($role && $role !== 'all') {
+            $query->where('role', $role);
+        }
+
+        $users = $query->paginate(15)->withQueryString();
+
+        $filters = [
+            'search' => $search,
+            'plan_id' => $planId,
+            'role' => $role,
+        ];
+
+        return view('dashboard.user', compact('users', 'plans', 'filters'));
     }
+    public function updateUserPlan(Request $request, $id)
+    {
+        $admin = auth()->user();
+        abort_unless($admin && $admin->isAdmin(), 403);
+
+        $data = $request->validate([
+            'plan_id' => ['required', 'exists:plans,id'],
+        ]);
+
+        $user = User::findOrFail($id);
+        $user->plan_id = $data['plan_id'];
+        $user->save();
+
+        return back()->with('success', 'User plan updated successfully.');
+    }
+
+
 
     public function user_show($id)
     {
-        // Eager-load widgets and subscriptions to avoid N+1
-        $user = User::with(['widgets', 'subscriptions'])->find($id);
+        $admin = auth()->user();
+        abort_unless($admin && $admin->isAdmin(), 403);
+
+        // Eager-load widgets, subscriptions, plan, personalities
+        $user = User::with(['widgets', 'subscriptions', 'plan', 'personalities'])->find($id);
 
         if (! $user) {
-            return redirect()->route('dashboard.user') // adjust if your list route name differs
+            return redirect()->route('dashboard.user')
                 ->with('error', 'User not found.');
         }
 
-        // some quick stats
-        $widgetCount = $user->widgets->count();
+        $widgetCount       = $user->widgets->count();
         $subscriptionCount = $user->subscriptions->count();
-        $recentWidgets = $user->widgets->sortByDesc('created_at')->take(7);
+        $recentWidgets     = $user->widgets->sortByDesc('created_at')->take(7);
+
+        // Plan + usage info
+        $widgetLimit       = $user->widgetLimit();
+        $personalityCount  = $user->personalities->count();
+        $personalityLimit  = $user->personalityLimit();
+        $dailyPromptLimit  = $user->dailyPromptLimit();
+
+        $today = now()->toDateString();
+        $todayUsage = UserDailyUsage::where('user_id', $user->id)
+            ->where('date', $today)
+            ->value('prompt_count') ?? 0;
+
+        // All plans for the change-plan dropdown
+        $plans = Plan::orderBy('id')->get();
 
         return view('dashboard.user-view', compact(
             'user',
             'widgetCount',
             'subscriptionCount',
-            'recentWidgets'
+            'recentWidgets',
+            'widgetLimit',
+            'personalityCount',
+            'personalityLimit',
+            'dailyPromptLimit',
+            'todayUsage',
+            'plans'
         ));
     }
+
 
 
     public function destroy($id)
@@ -298,5 +374,43 @@ class DashboardController extends Controller
         }
 
         return view('dashboard.subscriber-view', compact('subscriber'));
+    }
+
+    public function updateSubscriptionStatus(Request $request, Subscription $subscription)
+    {
+        $admin = auth()->user();
+        abort_unless($admin->isAdmin(), 403);
+
+        $request->validate([
+            'status' => 'required|in:active,inactive,pending'
+        ]);
+
+        $subscription->status = $request->status;
+        $subscription->save();
+
+        return back()->with('success', 'API Key status updated.');
+    }
+
+    public function resetSubscriptionToken(Subscription $subscription)
+    {
+        $admin = auth()->user();
+        abort_unless($admin->isAdmin(), 403);
+
+        // Reset message tokens (your existing system uses "token")
+        $subscription->token = 0;
+        $subscription->save();
+
+        return back()->with('success', 'Token count reset.');
+    }
+
+    public function regenerateApiKey(Subscription $subscription)
+    {
+        $admin = auth()->user();
+        abort_unless($admin->isAdmin(), 403);
+
+        $subscription->api_key = \Illuminate\Support\Str::random(20);
+        $subscription->save();
+
+        return back()->with('success', 'API Key regenerated.');
     }
 }
