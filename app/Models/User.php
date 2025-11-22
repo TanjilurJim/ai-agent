@@ -28,6 +28,7 @@ class User extends Authenticatable
         'plan_id',
     ];
 
+
     /**
      * The attributes that should be hidden for serialization.
      *
@@ -46,6 +47,8 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'plan_started_at'   => 'datetime',
+        'plan_expires_at'   => 'datetime',
     ];
 
     public function isAdmin()
@@ -74,13 +77,37 @@ class User extends Authenticatable
     }
     protected function effectivePlan(): ?Plan
     {
-        // In case plan_id is null somehow, fall back to 'free'
-        if ($this->plan) {
-            return $this->plan;
+        // Admins: ignore expiry, they are unlimited anyway
+        if ($this->isAdmin()) {
+            return $this->plan ?? Plan::where('name', 'free')->first();
         }
 
-        return Plan::where('name', 'free')->first();
+        // If no plan set → treat as free
+        if (! $this->plan) {
+            return Plan::where('name', 'free')->first();
+        }
+
+        // If plan has an expiry and it's in the past → treat as free
+        if ($this->plan_expires_at && now()->greaterThan($this->plan_expires_at)) {
+            return Plan::where('name', 'free')->first();
+        }
+
+        // Otherwise use assigned plan
+        return $this->plan;
     }
+    public function isPlanExpired(): bool
+    {
+        if ($this->isAdmin()) {
+            return false;
+        }
+
+        if (! $this->plan_expires_at) {
+            return false;
+        }
+
+        return now()->greaterThan($this->plan_expires_at);
+    }
+
 
     public function widgetLimit(): int
     {

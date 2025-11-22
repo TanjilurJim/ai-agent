@@ -141,13 +141,15 @@
                                             @endphp
                                             @foreach ($widgetRequestsByWidget->take(7) as $wr)
                                                 @php
-                                                    $percentage = $total > 0 ? round(($wr->requests_count / $total) * 100, 1) : 0;
+                                                    $percentage =
+                                                        $total > 0 ? round(($wr->requests_count / $total) * 100, 1) : 0;
                                                 @endphp
                                                 <tr>
                                                     <td>
                                                         <div class="d-flex align-items-center">
                                                             <div class="avatar-sm me-2 flex-shrink-0">
-                                                                <span class="avatar-title rounded-circle bg-primary-subtle text-primary">
+                                                                <span
+                                                                    class="avatar-title rounded-circle bg-primary-subtle text-primary">
                                                                     <i class="mdi mdi-cube"></i>
                                                                 </span>
                                                             </div>
@@ -156,7 +158,8 @@
                                                                     {{ $wr->widget->name ?? 'Unknown Widget' }}
                                                                 </p>
                                                                 <small class="text-muted">
-                                                                    API: {{ substr($wr->widget->api_key ?? 'N/A', 0, 8) }}...
+                                                                    API:
+                                                                    {{ substr($wr->widget->api_key ?? 'N/A', 0, 8) }}...
                                                                 </small>
                                                             </div>
                                                         </div>
@@ -169,12 +172,10 @@
                                                     <td class="text-end">
                                                         <div class="d-flex align-items-center justify-content-end">
                                                             <div class="progress me-2" style="width: 60px; height: 20px;">
-                                                                <div class="progress-bar bg-success" 
-                                                                     role="progressbar" 
-                                                                     style="width: {{ $percentage }}%;"
-                                                                     aria-valuenow="{{ $percentage }}" 
-                                                                     aria-valuemin="0" 
-                                                                     aria-valuemax="100">
+                                                                <div class="progress-bar bg-success" role="progressbar"
+                                                                    style="width: {{ $percentage }}%;"
+                                                                    aria-valuenow="{{ $percentage }}" aria-valuemin="0"
+                                                                    aria-valuemax="100">
                                                                 </div>
                                                             </div>
                                                             <small class="fw-semibold">{{ $percentage }}%</small>
@@ -200,13 +201,121 @@
                                     <div class="mb-3">
                                         <i class="mdi mdi-cube-off text-muted" style="font-size: 3rem;"></i>
                                     </div>
-                                    <p class="text-muted mb-0">No widget requests yet. Widgets will appear here as they receive requests.</p>
+                                    <p class="text-muted mb-0">No widget requests yet. Widgets will appear here as they
+                                        receive requests.</p>
                                 </div>
                             @endif
                         </div>
                     </div>
                 </div>
             </div>
+
+            {{-- Plan Upgrade Requests --}}
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-light border-bottom d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="card-title mb-0 fw-bold">
+                                    <i class="mdi mdi-arrow-up-bold-box-outline me-2"></i>Plan Upgrade Requests
+                                </h6>
+                                <small class="text-muted">
+                                    Incoming user requests to change their subscription plan.
+                                </small>
+                            </div>
+                            <span class="badge bg-warning text-dark">
+                                {{ isset($pendingPlanRequests) ? $pendingPlanRequests->count() : 0 }} Pending
+                            </span>
+                        </div>
+
+                        <div class="card-body">
+                            @if (isset($pendingPlanRequests) && $pendingPlanRequests->isNotEmpty())
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>User</th>
+                                                <th>Requested Plan</th>
+                                                <th>Contact</th>
+                                                <th>Requested At</th>
+                                                <th class="text-end">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach ($pendingPlanRequests as $req)
+                                                <tr>
+                                                    <td>
+                                                        <div class="d-flex align-items-center">
+                                                            <div class="avatar-sm me-2 flex-shrink-0">
+                                                                <span
+                                                                    class="avatar-title rounded-circle bg-primary-subtle text-primary text-uppercase">
+                                                                    {{ strtoupper(substr($req->user->name, 0, 1)) }}
+                                                                </span>
+                                                            </div>
+                                                            <div>
+                                                                <div class="fw-semibold">
+                                                                    {{ $req->user->name }}
+                                                                </div>
+                                                                <div class="small text-muted">
+                                                                    {{ $req->user->email }}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+
+                                                    <td>
+                                                        <span class="badge bg-info-subtle text-info me-1">
+                                                            {{ ucfirst($req->requestedPlan->name ?? 'N/A') }}
+                                                        </span>
+                                                    </td>
+
+                                                    <td>
+                                                        <span class="small">{{ $req->contact_number }}</span>
+                                                    </td>
+
+                                                    <td>
+                                                        <span class="small text-muted">
+                                                            {{ $req->created_at?->format('Y-m-d H:i') }}
+                                                        </span>
+                                                    </td>
+
+                                                    <td class="text-end">
+                                                        <a href="{{ route('user.show', $req->user_id) }}"
+                                                            class="btn btn-sm btn-outline-primary">
+                                                            <i class="mdi mdi-account-circle-outline me-1"></i> View user
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {{-- Later you can add a "View all plan requests" page --}}
+                                
+                    {{-- <div class="mt-3 text-center">
+                        <a href="{{ route('planRequests.index') }}" class="btn btn-outline-secondary btn-sm">
+                            <i class="mdi mdi-eye me-1"></i> View all requests
+                        </a>
+                    </div> --}}
+                   
+                            @else
+                                <div class="text-center py-4">
+                                    <div class="mb-2">
+                                        <i class="mdi mdi-arrow-up-bold-box-outline text-muted"
+                                            style="font-size: 2.5rem;"></i>
+                                    </div>
+                                    <p class="text-muted mb-0">
+                                        No pending plan upgrade requests.
+                                    </p>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
 
             <!-- Charts Section -->
             <div class="row">

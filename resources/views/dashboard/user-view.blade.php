@@ -45,7 +45,33 @@
                                         <span class="badge bg-primary text-uppercase">
                                             Plan: {{ $user->plan->name ?? 'free' }}
                                         </span>
+
+                                        @if ($user->isPlanExpired())
+                                            <span class="badge bg-danger ms-1">Expired</span>
+                                        @endif
                                     </div>
+
+                                    <div class="small text-muted mt-1">
+                                        @if ($user->plan_started_at)
+                                            Started: <strong>{{ $user->plan_started_at->toDayDateTimeString() }}</strong>
+                                            &nbsp;·&nbsp;
+                                        @endif
+
+                                        @if ($user->plan_expires_at)
+                                            Expires: <strong>{{ $user->plan_expires_at->toDayDateTimeString() }}</strong>
+                                        @else
+                                            Expires: <strong>Never (Free plan)</strong>
+                                        @endif
+                                    </div>
+
+                                    @if ($user->isPlanExpired())
+                                        <div class="small text-danger mt-1">
+                                            This user’s paid plan has expired. They are now using <strong>Free plan
+                                                limits</strong>
+                                            (even if a higher plan is still assigned).
+                                        </div>
+                                    @endif
+
                                 </div>
 
                                 <div class="text-end">
@@ -180,6 +206,52 @@
                                 <p class="text-muted">No subscriptions found for this user.</p>
                             @endif
 
+                            <hr>
+
+                            <h6 class="mb-3">Plan Request History</h6>
+                            @if (isset($planRequests) && $planRequests->isNotEmpty())
+                                <div class="table-responsive">
+                                    <table class="table table-sm mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>#</th>
+                                                <th>Requested Plan</th>
+                                                <th>Contact</th>
+                                                <th>Status</th>
+                                                <th>Requested At</th>
+                                                <th>Decided At</th>
+                                                <th>Decided By</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach ($planRequests as $req)
+                                                <tr>
+                                                    <td>{{ $loop->iteration }}</td>
+                                                    <td>{{ ucfirst($req->requestedPlan->name ?? 'N/A') }}</td>
+                                                    <td>{{ $req->contact_number }}</td>
+                                                    <td>
+                                                        @php $s = strtolower($req->status); @endphp
+                                                        <span
+                                                            class="badge
+                                @if ($s === 'approved') bg-success
+                                @elseif($s === 'rejected') bg-danger
+                                @else bg-warning text-dark @endif">
+                                                            {{ ucfirst($req->status) }}
+                                                        </span>
+                                                    </td>
+                                                    <td>{{ $req->created_at?->toDayDateTimeString() }}</td>
+                                                    <td>{{ $req->decided_at?->toDayDateTimeString() ?? '—' }}</td>
+                                                    <td>{{ $req->decidedBy->name ?? '—' }}</td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            @else
+                                <p class="text-muted">No plan requests yet for this user.</p>
+                            @endif
+
+
                         </div>
                     </div>
                 </div>
@@ -221,6 +293,43 @@
                                 </button>
                             </form>
 
+                            {{-- Pending plan request --}}
+                            @if (isset($planRequests) && $planRequests->where('status', 'pending')->count())
+                                @php
+                                    $pendingReq = $planRequests->where('status', 'pending')->first();
+                                @endphp
+
+                                <hr>
+                                <h6 class="card-title">Pending Plan Request</h6>
+                                <p class="small mb-1">
+                                    Requested plan:
+                                    <strong>{{ ucfirst($pendingReq->requestedPlan->name ?? 'N/A') }}</strong><br>
+                                    Contact: <strong>{{ $pendingReq->contact_number }}</strong><br>
+                                    Requested at:
+                                    <strong>{{ $pendingReq->created_at?->toDayDateTimeString() }}</strong>
+                                </p>
+
+                                <div class="d-flex gap-2 mb-3">
+                                    <form action="{{ route('planRequests.approve', $pendingReq->id) }}" method="POST"
+                                        onsubmit="return confirm('Approve this plan request?');">
+                                        @csrf
+                                        @method('PUT')
+                                        <button type="submit" class="btn btn-success btn-sm w-100">
+                                            Approve & Apply Plan
+                                        </button>
+                                    </form>
+
+                                    <form action="{{ route('planRequests.reject', $pendingReq->id) }}" method="POST"
+                                        onsubmit="return confirm('Reject this plan request?');">
+                                        @csrf
+                                        @method('PUT')
+                                        <button type="submit" class="btn btn-outline-danger btn-sm w-100">
+                                            Reject
+                                        </button>
+                                    </form>
+                                </div>
+                            @endif
+
                             {{-- Delete user --}}
                             <form action="{{ route('user.destroy', $user->id) }}" method="POST"
                                 onsubmit="return confirm('Delete this user? This cannot be undone.');">
@@ -230,6 +339,7 @@
                             </form>
                         </div>
                     </div>
+
                 </div>
 
             </div> <!-- row -->

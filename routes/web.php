@@ -120,10 +120,18 @@ Route::middleware('auth')->group(function () {
     Route::middleware(['auth'])->group(function () {
         // User-facing plans page
         Route::get('/plans', [PlansController::class, 'index'])->name('plans.index');
+        Route::post('/plans/request', [PlansController::class, 'request'])
+            ->name('plans.request');
 
         // Admin plan management
         Route::get('/dashboard/plans', [PlansController::class, 'adminIndex'])->name('dashboard.plans.index');
         Route::put('/dashboard/plans/{plan}', [PlansController::class, 'update'])->name('dashboard.plans.update');
+
+        Route::put('/dashboard/plan-requests/{planRequest}/approve', [PlansController::class, 'approve'])
+            ->name('planRequests.approve');
+
+        Route::put('/dashboard/plan-requests/{planRequest}/reject', [PlansController::class, 'reject'])
+            ->name('planRequests.reject');
     });
 
     // Debug / test

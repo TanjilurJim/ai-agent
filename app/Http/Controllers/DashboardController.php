@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use App\Models\UserDailyUsage;
 use App\Models\Plan;
+use App\Models\PlanRequest;
 
 
 class DashboardController extends Controller
@@ -66,11 +67,18 @@ class DashboardController extends Controller
         // This will attach 'widget' relation to each Subscription-like aggregate
         $widgetRequestsByWidget->loadMissing('widget');
 
+        $pendingPlanRequests = PlanRequest::with(['user', 'requestedPlan'])
+            ->where('status', 'pending')
+            ->latest()
+            ->take(6)
+            ->get();
+
         return view('dashboard.index', compact(
             'totalUsers',
             'newUsersThisWeek',
             'totalWidgetRequests',
-            'widgetRequestsByWidget'
+            'widgetRequestsByWidget',
+            'pendingPlanRequests'
         ));
     }
 
@@ -269,11 +277,27 @@ class DashboardController extends Controller
         ]);
 
         $user = User::findOrFail($id);
+
         $user->plan_id = $data['plan_id'];
+
+        // Free plan → no expiry
+        $freePlanId = \App\Models\Plan::where('name', 'free')->value('id');
+
+        if ($data['plan_id'] == $freePlanId) {
+            $user->plan_started_at = null;
+            $user->plan_expires_at = null;
+            $user->plan_auto_renews = false;
+        } else {
+            $user->plan_started_at = now();
+            $user->plan_expires_at = now()->addMonth(); // 1 month package
+            // Later you can set plan_auto_renews=true if you add billing
+        }
+
         $user->save();
 
         return back()->with('success', 'User plan updated successfully.');
     }
+
 
 
 
@@ -308,6 +332,12 @@ class DashboardController extends Controller
         // All plans for the change-plan dropdown
         $plans = Plan::orderBy('id')->get();
 
+        // 🔹 NEW: all plan requests for this user (for history + pending)
+        $planRequests = PlanRequest::with(['requestedPlan', 'currentPlan', 'decidedBy'])
+            ->where('user_id', $user->id)
+            ->latest()
+            ->get();
+
         return view('dashboard.user-view', compact(
             'user',
             'widgetCount',
@@ -318,9 +348,13 @@ class DashboardController extends Controller
             'personalityLimit',
             'dailyPromptLimit',
             'todayUsage',
-            'plans'
+            'plans',
+            'planRequests',
         ));
     }
+
+
+  
 
 
 

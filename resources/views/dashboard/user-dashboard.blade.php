@@ -16,6 +16,7 @@
             </div>
 
             {{-- PLAN SUMMARY CARD --}}
+            {{-- PLAN SUMMARY CARD --}}
             <div class="row">
                 <div class="col-md-12">
                     <div class="card border-0 shadow-sm mb-3">
@@ -26,15 +27,44 @@
                                     <span class="badge bg-primary text-uppercase">
                                         {{ $plan->name ?? 'free' }}
                                     </span>
+
+                                    @if ($user->isPlanExpired())
+                                        <span class="badge bg-danger ms-1">Expired</span>
+                                    @endif
                                 </h5>
-                                <div class="small text-muted">
+
+                                <div class="small text-muted mb-1">
                                     Widgets: <strong>{{ $widgetCount }} / {{ $widgetLimit }}</strong> &nbsp;·&nbsp;
-                                    Personalities: <strong>{{ $personalityCount }} / {{ $personalityLimit }}</strong> &nbsp;·&nbsp;
-                                    Daily messages: <strong>{{ $todayUsage }} / {{ $dailyPromptLimit }}</strong>
+                                    Personalities: <strong>{{ $personalityCount }} / {{ $personalityLimit }}</strong>
+                                    &nbsp;·&nbsp;
+                                    Daily messages (today): <strong>{{ $todayUsage }} / {{ $dailyPromptLimit }}</strong>
                                 </div>
+
+                                <div class="small text-muted">
+                                    @if ($user->plan_started_at)
+                                        Started: <strong>{{ $user->plan_started_at->toDayDateTimeString() }}</strong>
+                                        &nbsp;·&nbsp;
+                                    @endif
+
+                                    @if ($user->plan_expires_at)
+                                        Expires: <strong>{{ $user->plan_expires_at->toDayDateTimeString() }}</strong>
+                                    @else
+                                        Expires: <strong>Never (Free plan)</strong>
+                                    @endif
+                                </div>
+
+                                @if ($user->isPlanExpired())
+                                    <div class="small text-danger mt-1">
+                                        Your paid plan has expired. You are now using <strong>Free plan limits</strong>
+                                        (lower widget, personality, and daily message limits).
+                                    </div>
+                                @endif
                             </div>
-                            <div class="mt-3 mt-md-0">
-                                {{-- Change this route to your real plans / billing page --}}
+
+                            <div class="mt-3 mt-md-0 text-md-end">
+                                <div class="small text-muted mb-1">
+                                    Need more usage or features?
+                                </div>
                                 <a href="{{ route('plans.index') }}" class="btn btn-outline-primary">
                                     Request plan upgrade
                                 </a>
@@ -43,6 +73,7 @@
                     </div>
                 </div>
             </div>
+
 
             <!-- Friendly welcome message -->
             <div class="alert alert-primary mt-2">
