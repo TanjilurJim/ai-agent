@@ -148,7 +148,7 @@ Route::middleware('auth')->group(function () {
                 'content'         => 'Hello from test route!',
             ])
         ));
-        return 'ok';
+        return 'ok!';
     })->middleware(['web']); // already in auth group
 });
 
